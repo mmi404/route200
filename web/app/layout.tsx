@@ -48,7 +48,13 @@ const plexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
+// Update once the real production domain is live; this only affects how
+// absolute URLs (the OG/Twitter images below) resolve, not local dev.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://route200.vercel.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Route200",
     template: "%s · Route200",
