@@ -1,0 +1,605 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              89.692,
+              24.45
+            ],
+            [
+              89.732,
+              24.436
+            ],
+            [
+              89.75,
+              24.464
+            ],
+            [
+              89.74,
+              24.496
+            ],
+            [
+              89.712,
+              24.504
+            ],
+            [
+              89.69,
+              24.48
+            ],
+            [
+              89.692,
+              24.45
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-jamuna-sirajganj-sadar",
+        "name": "Jamuna char, Sirajganj Sadar",
+        "kind": "erosion",
+        "center": {
+          "lat": 24.47,
+          "lng": 89.72
+        },
+        "district": "Sirajganj",
+        "upazila": "Sirajganj Sadar",
+        "registeredAlertCount": 186
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              89.6278,
+              24.747
+            ],
+            [
+              89.6738,
+              24.7309
+            ],
+            [
+              89.6945,
+              24.7631
+            ],
+            [
+              89.683,
+              24.7999
+            ],
+            [
+              89.6508,
+              24.8091
+            ],
+            [
+              89.6255,
+              24.7815
+            ],
+            [
+              89.6278,
+              24.747
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-jamuna-kazipur",
+        "name": "Jamuna char, Kazipur",
+        "kind": "erosion",
+        "center": {
+          "lat": 24.77,
+          "lng": 89.66
+        },
+        "district": "Sirajganj",
+        "upazila": "Kazipur",
+        "registeredAlertCount": 241
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              89.5848,
+              24.852
+            ],
+            [
+              89.6208,
+              24.8394
+            ],
+            [
+              89.637,
+              24.8646
+            ],
+            [
+              89.628,
+              24.8934
+            ],
+            [
+              89.6028,
+              24.9006
+            ],
+            [
+              89.583,
+              24.879
+            ],
+            [
+              89.5848,
+              24.852
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-jamuna-sariakandi",
+        "name": "Jamuna riverbank, Sariakandi",
+        "kind": "erosion",
+        "center": {
+          "lat": 24.87,
+          "lng": 89.61
+        },
+        "district": "Bogura",
+        "upazila": "Sariakandi",
+        "registeredAlertCount": 162
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              89.5262,
+              24.733
+            ],
+            [
+              89.5602,
+              24.7211
+            ],
+            [
+              89.5755,
+              24.7449
+            ],
+            [
+              89.567,
+              24.7721
+            ],
+            [
+              89.5432,
+              24.7789
+            ],
+            [
+              89.5245,
+              24.7585
+            ],
+            [
+              89.5262,
+              24.733
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-jamuna-sonatola",
+        "name": "Jamuna riverbank, Sonatola",
+        "kind": "erosion",
+        "center": {
+          "lat": 24.75,
+          "lng": 89.55
+        },
+        "district": "Bogura",
+        "upazila": "Sonatola",
+        "registeredAlertCount": 97
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              89.542,
+              25.13
+            ],
+            [
+              89.582,
+              25.116
+            ],
+            [
+              89.6,
+              25.144
+            ],
+            [
+              89.59,
+              25.176
+            ],
+            [
+              89.562,
+              25.184
+            ],
+            [
+              89.54,
+              25.16
+            ],
+            [
+              89.542,
+              25.13
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-jamuna-saghata",
+        "name": "Jamuna char, Saghata",
+        "kind": "erosion",
+        "center": {
+          "lat": 25.15,
+          "lng": 89.57
+        },
+        "district": "Gaibandha",
+        "upazila": "Saghata",
+        "registeredAlertCount": 134
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              89.6192,
+              25.208
+            ],
+            [
+              89.6632,
+              25.1926
+            ],
+            [
+              89.683,
+              25.2234
+            ],
+            [
+              89.672,
+              25.2586
+            ],
+            [
+              89.6412,
+              25.2674
+            ],
+            [
+              89.617,
+              25.241
+            ],
+            [
+              89.6192,
+              25.208
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-jamuna-fulchhari",
+        "name": "Jamuna char, Fulchhari",
+        "kind": "erosion",
+        "center": {
+          "lat": 25.23,
+          "lng": 89.65
+        },
+        "district": "Gaibandha",
+        "upazila": "Fulchhari",
+        "registeredAlertCount": 178
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              92.198,
+              22.184
+            ],
+            [
+              92.226,
+              22.174
+            ],
+            [
+              92.244,
+              22.196
+            ],
+            [
+              92.238,
+              22.22
+            ],
+            [
+              92.216,
+              22.225
+            ],
+            [
+              92.196,
+              22.208
+            ],
+            [
+              92.198,
+              22.184
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-cht-bandarban-sadar",
+        "name": "Bandarban Sadar hill slopes",
+        "kind": "landslide",
+        "center": {
+          "lat": 22.2,
+          "lng": 92.22
+        },
+        "district": "Bandarban",
+        "upazila": "Bandarban Sadar",
+        "registeredAlertCount": 212
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              92.1991,
+              21.8048
+            ],
+            [
+              92.2257,
+              21.7953
+            ],
+            [
+              92.2428,
+              21.8162
+            ],
+            [
+              92.2371,
+              21.839
+            ],
+            [
+              92.2162,
+              21.8438
+            ],
+            [
+              92.1972,
+              21.8276
+            ],
+            [
+              92.1991,
+              21.8048
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-cht-lama",
+        "name": "Lama hill slopes",
+        "kind": "landslide",
+        "center": {
+          "lat": 21.82,
+          "lng": 92.22
+        },
+        "district": "Bandarban",
+        "upazila": "Lama",
+        "registeredAlertCount": 155
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              92.3502,
+              21.6056
+            ],
+            [
+              92.3754,
+              21.5966
+            ],
+            [
+              92.3916,
+              21.6164
+            ],
+            [
+              92.3862,
+              21.638
+            ],
+            [
+              92.3664,
+              21.6425
+            ],
+            [
+              92.3484,
+              21.6272
+            ],
+            [
+              92.3502,
+              21.6056
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-cht-naikhongchhari",
+        "name": "Naikhongchhari hill slopes",
+        "kind": "landslide",
+        "center": {
+          "lat": 21.62,
+          "lng": 92.37
+        },
+        "district": "Bandarban",
+        "upazila": "Naikhongchhari",
+        "registeredAlertCount": 88
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              91.9458,
+              21.5024
+            ],
+            [
+              91.9766,
+              21.4914
+            ],
+            [
+              91.9964,
+              21.5156
+            ],
+            [
+              91.9898,
+              21.542
+            ],
+            [
+              91.9656,
+              21.5475
+            ],
+            [
+              91.9436,
+              21.5288
+            ],
+            [
+              91.9458,
+              21.5024
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-cht-coxsbazar-sadar",
+        "name": "Cox's Bazar Sadar hill slopes",
+        "kind": "landslide",
+        "center": {
+          "lat": 21.52,
+          "lng": 91.97
+        },
+        "district": "Cox's Bazar",
+        "upazila": "Cox's Bazar Sadar",
+        "registeredAlertCount": 264
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              92.278,
+              21.534
+            ],
+            [
+              92.306,
+              21.524
+            ],
+            [
+              92.324,
+              21.546
+            ],
+            [
+              92.318,
+              21.57
+            ],
+            [
+              92.296,
+              21.575
+            ],
+            [
+              92.276,
+              21.558
+            ],
+            [
+              92.278,
+              21.534
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-cht-teknaf",
+        "name": "Teknaf hill slopes",
+        "kind": "landslide",
+        "center": {
+          "lat": 21.55,
+          "lng": 92.3
+        },
+        "district": "Cox's Bazar",
+        "upazila": "Teknaf",
+        "registeredAlertCount": 121
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              92.148,
+              21.564
+            ],
+            [
+              92.176,
+              21.554
+            ],
+            [
+              92.194,
+              21.576
+            ],
+            [
+              92.188,
+              21.6
+            ],
+            [
+              92.166,
+              21.605
+            ],
+            [
+              92.146,
+              21.588
+            ],
+            [
+              92.148,
+              21.564
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "zone-cht-ukhiya",
+        "name": "Ukhiya hill slopes",
+        "kind": "landslide",
+        "center": {
+          "lat": 21.58,
+          "lng": 92.17
+        },
+        "district": "Cox's Bazar",
+        "upazila": "Ukhiya",
+        "registeredAlertCount": 199
+      }
+    }
+  ]
+}
