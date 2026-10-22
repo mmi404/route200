@@ -1,0 +1,386 @@
+@import "tailwindcss";
+
+/*
+ * Route200 design tokens. Single source for color, type, spacing and motion.
+ * Full rationale and usage rules: web/DESIGN_SPEC.md.
+ *
+ * The default Tailwind color palette and font-size scale are deliberately
+ * removed (`initial`), so `bg-zinc-50` or `text-lg` simply do not exist here.
+ * Use the named tokens below. If a value you need is missing, add a token
+ * here and to DESIGN_SPEC.md, do not reach for an arbitrary value.
+ *
+ * Hex values are mirrored in lib/design-tokens.ts for MapLibre paint
+ * properties (which cannot read CSS variables). Keep the two in sync.
+ */
+
+@theme static {
+  /* ---------- Color: neutrals (paper and ink) ---------- */
+  --color-*: initial;
+
+  --color-paper: #f5f0e6; /* page background, warm newsprint */
+  --color-surface: #fbf8f1; /* raised panels: map rail, form sheet */
+  --color-well: #ece5d8; /* alternate section band, sunken areas */
+  --color-rule: #d9cfbe; /* hairlines and dividers (decorative only) */
+  --color-ink: #1c1a17; /* primary text, strong rules, footer band */
+  --color-ink-muted: #57514a; /* secondary text, 6.9:1 on paper */
+  --color-ink-subtle: #6e665b; /* meta text, captions, 5.0:1 on paper */
+
+  /* ---------- Color: brand accents ---------- */
+  --color-river: #1d5b78; /* primary: CTAs, links, focus, selection */
+  --color-river-deep: #14445a; /* primary hover / pressed */
+  --color-river-tint: #dce7ea; /* selected rows, text selection */
+  --color-ok: #2e6b3e; /* secondary: the "200" moment, success only */
+  --color-ok-tint: #dde8d9; /* success backgrounds */
+
+  /* ---------- Color: on the ink band (footer, inverse sections) ---------- */
+  --color-paper-muted: #a39a8c; /* secondary text on ink, 6.3:1 */
+  --color-river-light: #9cc3d5; /* links on ink, 9.2:1 */
+  --color-ok-light: #8fc29b; /* "200" on ink, 8.6:1 */
+
+  /* ---------- Color: severity ramp (sequential, lightness-ordered) ----------
+   * Fills are for areas: map polygons, swatches, chart bars. Low and
+   * moderate fills are too light for text and need a 1px ink/25 outline
+   * when drawn as a small swatch on paper.
+   * The -ink variants are the text-safe versions (all >= 5.6:1 on paper).
+   */
+  --color-sev-low: #ebcb6b;
+  --color-sev-moderate: #e08a3a;
+  --color-sev-high: #b2442a;
+  --color-sev-severe: #6b1d32;
+  --color-sev-low-ink: #7a5800;
+  --color-sev-moderate-ink: #99460f;
+  --color-sev-high-ink: #a63b1f;
+  --color-sev-severe-ink: #6b1d32;
+  --color-nodata: #c9c0b0; /* zone tracked, no change event in range */
+
+  /* ---------- Type families ---------- */
+  --font-*: initial;
+  /* Display and headings: Anek Bangla covers both scripts, so a headline
+     that mixes Bangla with a Latin place name stays in one voice. */
+  --font-display:
+    var(--font-anek-bangla), var(--font-noto-bengali), ui-sans-serif,
+    system-ui, sans-serif;
+  /* Body and UI: IBM Plex Sans for Latin; Bengali glyphs fall through to
+     Noto Sans Bengali per glyph, so mixed-script paragraphs just work. */
+  --font-sans:
+    var(--font-plex-sans), var(--font-noto-bengali), ui-sans-serif, system-ui,
+    sans-serif;
+  /* Data voice: dates, coordinates, scene names, sources, eyebrows. */
+  --font-mono:
+    var(--font-plex-mono), var(--font-noto-bengali), ui-monospace,
+    "SFMono-Regular", Menlo, monospace;
+
+  /* ---------- Type scale ----------
+   * Ten named roles, nothing else. Prefer the composite `type-*` utilities
+   * below, which also set family, width and Bangla overrides.
+   */
+  --text-*: initial;
+  --text-display: clamp(2.625rem, 1.6rem + 4.4vw, 5.25rem); /* 42–84px */
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.028em;
+  --text-display--font-weight: 650;
+  --text-h1: clamp(2.125rem, 1.5rem + 2.6vw, 3.5rem); /* 34–56px */
+  --text-h1--line-height: 1.05;
+  --text-h1--letter-spacing: -0.022em;
+  --text-h1--font-weight: 650;
+  --text-h2: clamp(1.625rem, 1.25rem + 1.5vw, 2.375rem); /* 26–38px */
+  --text-h2--line-height: 1.12;
+  --text-h2--letter-spacing: -0.016em;
+  --text-h2--font-weight: 600;
+  --text-h3: 1.3125rem; /* 21px */
+  --text-h3--line-height: 1.25;
+  --text-h3--letter-spacing: -0.008em;
+  --text-h3--font-weight: 600;
+  --text-lede: clamp(1.1875rem, 1.05rem + 0.6vw, 1.4375rem); /* 19–23px */
+  --text-lede--line-height: 1.5;
+  --text-body: 1.0625rem; /* 17px */
+  --text-body--line-height: 1.65;
+  --text-small: 0.9375rem; /* 15px */
+  --text-small--line-height: 1.55;
+  --text-meta: 0.8125rem; /* 13px, mono */
+  --text-meta--line-height: 1.45;
+  --text-eyebrow: 0.75rem; /* 12px, mono caps */
+  --text-eyebrow--line-height: 1.3;
+  --text-eyebrow--letter-spacing: 0.12em;
+  --text-stat: clamp(2.75rem, 2rem + 3vw, 4.5rem); /* 44–72px */
+  --text-stat--line-height: 0.95;
+  --text-stat--letter-spacing: -0.03em;
+  --text-stat--font-weight: 600;
+
+  /* ---------- Spacing ----------
+   * Base unit stays 4px (Tailwind's --spacing). Use the steps
+   * 1 2 3 4 6 8 12 16 24 32 (4–128px) for component spacing, and the named
+   * layout tokens below for page rhythm.
+   */
+  --spacing-gutter: clamp(1rem, 0.5rem + 2.5vw, 2.5rem); /* 16–40px */
+  --spacing-section: clamp(4.5rem, 3rem + 7vw, 9rem); /* 72–144px */
+  --spacing-section-tight: clamp(3rem, 2rem + 4vw, 5.5rem); /* 48–88px */
+  --spacing-header: 3.5rem; /* site header height, 56px */
+  --spacing-rail: 22.5rem; /* map side rail width, 360px */
+
+  /* ---------- Measures ---------- */
+  --container-column: 40rem; /* running text, ~68 characters */
+  --container-wide: 76rem; /* two-column sections */
+  --container-frame: 90rem; /* outer page frame */
+
+  /* ---------- Shape and depth ----------
+   * Editorial means square. Only 2px radius on controls, full radius
+   * only for dots. Shadow exists only for panels floating over the map.
+   */
+  --radius-xs: 2px;
+  --shadow-map: 0 1px 0 rgb(28 26 23 / 0.08), 0 10px 24px -14px rgb(28 26 23 / 0.45);
+
+  /* ---------- Motion ---------- */
+  --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 150ms;
+  --duration-base: 280ms;
+  --duration-map: 600ms;
+  --duration-count: 1200ms;
+}
+
+/* ---------- Composite type roles ----------
+ * One class sets family, size, leading, tracking, weight and width, plus the
+ * Bangla override. Bengali conjuncts and vowel signs need more vertical room,
+ * and letter-spacing breaks the matra (headline bar), so tracking is always
+ * zero under :lang(bn).
+ */
+@utility type-display {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  line-height: var(--text-display--line-height);
+  letter-spacing: var(--text-display--letter-spacing);
+  font-weight: var(--text-display--font-weight);
+  font-stretch: 82%;
+  text-wrap: balance;
+  &:lang(bn) {
+    line-height: 1.2;
+    letter-spacing: 0;
+    font-stretch: 92%;
+  }
+}
+
+@utility type-h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-h1);
+  line-height: var(--text-h1--line-height);
+  letter-spacing: var(--text-h1--letter-spacing);
+  font-weight: var(--text-h1--font-weight);
+  font-stretch: 86%;
+  text-wrap: balance;
+  &:lang(bn) {
+    line-height: 1.25;
+    letter-spacing: 0;
+    font-stretch: 94%;
+  }
+}
+
+@utility type-h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  line-height: var(--text-h2--line-height);
+  letter-spacing: var(--text-h2--letter-spacing);
+  font-weight: var(--text-h2--font-weight);
+  font-stretch: 90%;
+  text-wrap: balance;
+  &:lang(bn) {
+    line-height: 1.32;
+    letter-spacing: 0;
+    font-stretch: 96%;
+  }
+}
+
+@utility type-h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  line-height: var(--text-h3--line-height);
+  letter-spacing: var(--text-h3--letter-spacing);
+  font-weight: var(--text-h3--font-weight);
+  font-stretch: 100%;
+  &:lang(bn) {
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
+}
+
+@utility type-lede {
+  font-family: var(--font-sans);
+  font-size: var(--text-lede);
+  line-height: var(--text-lede--line-height);
+  font-weight: 400;
+  text-wrap: pretty;
+  &:lang(bn) {
+    line-height: 1.7;
+  }
+}
+
+@utility type-body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  font-weight: 400;
+  text-wrap: pretty;
+  &:lang(bn) {
+    line-height: 1.8;
+  }
+}
+
+@utility type-small {
+  font-family: var(--font-sans);
+  font-size: var(--text-small);
+  line-height: var(--text-small--line-height);
+  font-weight: 400;
+  &:lang(bn) {
+    line-height: 1.7;
+  }
+}
+
+@utility type-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: var(--text-meta--line-height);
+  font-weight: 400;
+  letter-spacing: 0;
+  &:lang(bn) {
+    line-height: 1.6;
+  }
+}
+
+@utility type-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  line-height: var(--text-eyebrow--line-height);
+  letter-spacing: var(--text-eyebrow--letter-spacing);
+  font-weight: 500;
+  text-transform: uppercase;
+  &:lang(bn) {
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    line-height: 1.4;
+    letter-spacing: 0;
+    font-weight: 600;
+  }
+}
+
+@utility type-stat {
+  font-family: var(--font-sans);
+  font-size: var(--text-stat);
+  line-height: var(--text-stat--line-height);
+  letter-spacing: var(--text-stat--letter-spacing);
+  font-weight: var(--text-stat--font-weight);
+  font-stretch: 78%;
+  font-variant-numeric: tabular-nums lining-nums;
+  &:lang(bn) {
+    letter-spacing: 0;
+    line-height: 1.1;
+  }
+}
+
+/* ---------- Layout helpers ---------- */
+
+/* The outer page frame: full width up to 90rem, gutter padding. */
+@utility frame {
+  width: 100%;
+  max-width: var(--container-frame);
+  margin-inline: auto;
+  padding-inline: var(--spacing-gutter);
+}
+
+/* Inline text link inside running copy. */
+@utility link-inline {
+  color: var(--color-river);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  transition:
+    text-decoration-color var(--duration-fast) var(--ease-editorial),
+    text-decoration-thickness var(--duration-fast) var(--ease-editorial);
+  &:hover {
+    text-decoration-color: currentColor;
+    text-decoration-thickness: 2px;
+  }
+}
+
+/* ---------- Base ---------- */
+@layer base {
+  html {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    font-kerning: normal;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body:lang(bn) {
+    line-height: 1.8;
+  }
+
+  ::selection {
+    background-color: var(--color-river-tint);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-river);
+    outline-offset: 2px;
+  }
+
+  hr {
+    border-color: var(--color-rule);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+}
+
+/* ---------- Motion ----------
+ * Scroll-linked reveal for section headings and stat rows only. Pure CSS
+ * scroll-driven animation: browsers without support, and anyone with
+ * reduced motion, simply see the content in place.
+ */
+@keyframes r200-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer components {
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .reveal {
+        animation: r200-reveal linear both;
+        animation-timeline: view();
+        animation-range: entry 5% cover 28%;
+      }
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
