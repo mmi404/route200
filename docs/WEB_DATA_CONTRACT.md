@@ -98,6 +98,23 @@ Query params:
 Both params can be combined. Neither is required; omitting both returns
 every event.
 
+### `POST /api/alerts`
+
+Accepts an alert signup submission from `web/app/alerts/_components/AlertSignupForm.tsx` (embedded on the landing page and on the standalone `/alerts` page).
+
+Request body:
+
+```
+{
+  phone: string           // E.164, "+880" followed by a 10-digit number
+  zoneId: string           // must match a real Zone.id
+  channels: { sms: boolean, voice: boolean }   // at least one true
+  language: "bn" | "en"
+}
+```
+
+Currently this is a placeholder: the handler validates the shape, logs `zoneId`/`channels`/`language` server-side (the phone number is deliberately left out of the log), and returns `{ ok: true }`. There is no contacts table yet. Replacing the body of `web/app/api/alerts/route.ts` with a real write to the alert-delivery track's contacts table (ARCHITECTURE.md section 5, the table that `zones.registeredAlertCount` above is ultimately derived from) is the entire integration point here too, same pattern as `/api/zones` and `/api/change-events`. The response shape (`{ ok: true }`, or an error) and the request body shape should stay the same so the form doesn't need to change.
+
 ## Swapping in the real engine
 
 Both route handlers (`web/app/api/zones/route.ts` and

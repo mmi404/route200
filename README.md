@@ -34,7 +34,7 @@ Optical satellites fail during monsoon, exactly when the information matters mos
 ## Tech stack
 
 - **Processing**: Python (NumPy, rasterio/xarray for raster handling)
-- **Viewer**: Next.js + Tailwind, MapLibre/Leaflet for the map layer
+- **Viewer**: Next.js + Tailwind, MapLibre GL JS for the map layer (OpenFreeMap tiles, no API key required)
 - **API**: Node / Next API routes
 - **Data**: Postgres/Supabase for change events and zone reference tables
 - **Alert delivery**: SMS gateway + Bangla text-to-speech voice-call pipeline
@@ -63,7 +63,11 @@ CUET_404 = Chittagong University of Engineering & Technology plus the error code
 
 ## Status
 
-Early build phase. Data access and tooling are being confirmed before implementation begins. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the current system design.
+The web experience (`web/`) is built: landing page, the interactive risk map, and the alert signup flow, all running against a mock data layer shaped exactly like the real API described below, so the change-detection engine can be connected without a frontend rewrite. See [docs/WEB_DATA_CONTRACT.md](docs/WEB_DATA_CONTRACT.md) for that integration point and [web/DESIGN_SPEC.md](web/DESIGN_SPEC.md) for the visual system it's built on.
+
+The change-detection engine (Sentinel-1 now, NISAR GCOV for the actual submission output) is being built separately; data access and tooling research for that side lives in `nasaspace/ML_Data_Sources_DRAFT.md`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the current system design.
+
+To run the web app locally: `cd web && npm install && npm run dev`.
 
 ## License
 

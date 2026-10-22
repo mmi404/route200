@@ -1,36 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Route200 web
 
-## Getting Started
+The public web experience for Route200: the landing page, the interactive risk map, and the alert signup flow. Part of the [Route200](../README.md) project.
 
-First, run the development server:
+## Stack
+
+Next.js 16 (App Router, TypeScript, Tailwind v4, Turbopack), MapLibre GL JS over [OpenFreeMap](https://openfreemap.org/) tiles (no API key required).
+
+## Running locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Where things live
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `app/` : the three routes (`/`, `/map`, `/alerts`) and their page-specific components, kept next to the page that owns them (`app/_landing/`, `app/map/_components/`, `app/alerts/_components/`).
+- `app/components/` : shared design-system primitives used across pages. See `DESIGN_SPEC.md` before adding a new one.
+- `app/api/` : route handlers backing the mock data layer (`/api/zones`, `/api/change-events`, `/api/alerts`). See `../docs/WEB_DATA_CONTRACT.md` for the exact shapes and the real-engine integration point.
+- `lib/` : shared types, mock data, and the token mirror MapLibre reads from (it can't read CSS variables).
+- `DESIGN_SPEC.md` : the committed visual system (palette, type, motion, layout). Read this before styling anything; it's the single source of truth, not `app/globals.css` alone.
+- `.design-research/` : the research and copy drafts the design system and landing page were built from. Reference material, not live documentation.
