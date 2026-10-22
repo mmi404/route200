@@ -36,6 +36,14 @@ export type ZoneGeometry = PolygonGeometry | MultiPolygonGeometry;
 export interface ZoneProperties {
   id: string;
   name: string;
+  /**
+   * Natural Bangla name for this zone, for the Bangla UI (map labels, the
+   * alert signup form's area select, the SMS preview sentence). Written as
+   * a native speaker would actually refer to the place, not a literal
+   * transliteration of `name`. Optional only because older mock data
+   * predates this field; every zone in lib/data/zones.geojson has one.
+   */
+  nameBn?: string;
   kind: ZoneKind;
   center: ZoneCenter;
   /** District the zone falls in, e.g. "Sirajganj" or "Bandarban". */

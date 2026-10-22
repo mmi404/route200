@@ -41,6 +41,7 @@
       "properties": {
         "id": "zone-jamuna-sirajganj-sadar",
         "name": "Jamuna char, Sirajganj Sadar",
+        "nameBn": "যমুনার চর, সিরাজগঞ্জ সদর",
         "kind": "erosion",
         "center": {
           "lat": 24.47,
@@ -91,6 +92,7 @@
       "properties": {
         "id": "zone-jamuna-kazipur",
         "name": "Jamuna char, Kazipur",
+        "nameBn": "যমুনার চর, কাজীপুর",
         "kind": "erosion",
         "center": {
           "lat": 24.77,
@@ -141,6 +143,7 @@
       "properties": {
         "id": "zone-jamuna-sariakandi",
         "name": "Jamuna riverbank, Sariakandi",
+        "nameBn": "যমুনার পাড়, সারিয়াকান্দি",
         "kind": "erosion",
         "center": {
           "lat": 24.87,
@@ -191,6 +194,7 @@
       "properties": {
         "id": "zone-jamuna-sonatola",
         "name": "Jamuna riverbank, Sonatola",
+        "nameBn": "যমুনার পাড়, সোনাতলা",
         "kind": "erosion",
         "center": {
           "lat": 24.75,
@@ -241,6 +245,7 @@
       "properties": {
         "id": "zone-jamuna-saghata",
         "name": "Jamuna char, Saghata",
+        "nameBn": "যমুনার চর, সাঘাটা",
         "kind": "erosion",
         "center": {
           "lat": 25.15,
@@ -291,6 +296,7 @@
       "properties": {
         "id": "zone-jamuna-fulchhari",
         "name": "Jamuna char, Fulchhari",
+        "nameBn": "যমুনার চর, ফুলছড়ি",
         "kind": "erosion",
         "center": {
           "lat": 25.23,
@@ -341,6 +347,7 @@
       "properties": {
         "id": "zone-cht-bandarban-sadar",
         "name": "Bandarban Sadar hill slopes",
+        "nameBn": "বান্দরবান সদরের পাহাড়ি ঢাল",
         "kind": "landslide",
         "center": {
           "lat": 22.2,
@@ -391,6 +398,7 @@
       "properties": {
         "id": "zone-cht-lama",
         "name": "Lama hill slopes",
+        "nameBn": "লামার পাহাড়ি ঢাল",
         "kind": "landslide",
         "center": {
           "lat": 21.82,
@@ -441,6 +449,7 @@
       "properties": {
         "id": "zone-cht-naikhongchhari",
         "name": "Naikhongchhari hill slopes",
+        "nameBn": "নাইক্ষ্যংছড়ির পাহাড়ি ঢাল",
         "kind": "landslide",
         "center": {
           "lat": 21.62,
@@ -491,6 +500,7 @@
       "properties": {
         "id": "zone-cht-coxsbazar-sadar",
         "name": "Cox's Bazar Sadar hill slopes",
+        "nameBn": "কক্সবাজার সদরের পাহাড়ি ঢাল",
         "kind": "landslide",
         "center": {
           "lat": 21.52,
@@ -541,6 +551,7 @@
       "properties": {
         "id": "zone-cht-teknaf",
         "name": "Teknaf hill slopes",
+        "nameBn": "টেকনাফের পাহাড়ি ঢাল",
         "kind": "landslide",
         "center": {
           "lat": 21.55,
@@ -591,6 +602,7 @@
       "properties": {
         "id": "zone-cht-ukhiya",
         "name": "Ukhiya hill slopes",
+        "nameBn": "উখিয়ার পাহাড়ি ঢাল",
         "kind": "landslide",
         "center": {
           "lat": 21.58,
