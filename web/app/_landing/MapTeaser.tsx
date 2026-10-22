@@ -110,7 +110,7 @@ export function MapTeaser() {
           }}
           className="flex min-h-[100svh] items-end px-gutter pb-10 sm:min-h-[calc(100dvh-var(--spacing-header))] sm:items-center sm:pb-0"
         >
-          <div className="surface max-w-[22rem] p-6 sm:max-w-[26rem] sm:p-8">
+          <div className="bg-surface max-w-[22rem] p-6 sm:max-w-[26rem] sm:p-8">
             <SectionLabel index={3} className="mb-4">
               The map
             </SectionLabel>
@@ -132,7 +132,7 @@ export function MapTeaser() {
           }}
           className="flex min-h-[100svh] items-end px-gutter pb-10 sm:min-h-[calc(100dvh-var(--spacing-header))] sm:items-center sm:pb-0"
         >
-          <div className="surface max-w-[22rem] p-6 sm:max-w-[26rem] sm:p-8">
+          <div className="bg-surface max-w-[22rem] p-6 sm:max-w-[26rem] sm:p-8">
             <p className="type-body text-ink-muted">
               If your village sits on a Jamuna char, or your family&apos;s
               land is on a Chattogram hillside, this map is the closest thing
@@ -148,7 +148,7 @@ export function MapTeaser() {
           }}
           className="flex min-h-[100svh] items-end px-gutter pb-10 sm:min-h-[calc(100dvh-var(--spacing-header))] sm:items-center sm:pb-0"
         >
-          <div className="surface flex max-w-[22rem] flex-col gap-6 p-6 sm:max-w-[26rem] sm:p-8">
+          <div className="bg-surface flex max-w-[22rem] flex-col gap-6 p-6 sm:max-w-[26rem] sm:p-8">
             <SeverityScale title="Change severity, engine score 0–100" markAlertThreshold />
             <ButtonLink href="/map?view=hill-tracts" size="lg">
               See the risk map

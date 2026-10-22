@@ -20,12 +20,17 @@ export function FloatingControls({
   onZoomOutAction,
 }: FloatingControlsProps) {
   return (
+    // overflow-hidden clips each button's own focus-visible outline, since
+    // the default outline-offset (2px, set globally) draws it outside the
+    // button's box and into the clipped region. Each button pulls its
+    // outline inward instead (focus-visible:outline-offset-[-2px]) so it
+    // stays inside the clip and is actually visible on focus.
     <div className="absolute right-4 top-4 z-10 flex flex-col overflow-hidden rounded-xs bg-surface shadow-map">
       <button
         type="button"
         onClick={onZoomInAction}
         aria-label="Zoom in"
-        className="flex h-10 w-10 items-center justify-center border-b border-rule text-ink transition-colors duration-(--duration-fast) ease-editorial hover:bg-well"
+        className="flex h-10 w-10 items-center justify-center border-b border-rule text-ink transition-colors duration-(--duration-fast) ease-editorial hover:bg-well focus-visible:outline-offset-[-2px]"
       >
         +
       </button>
@@ -33,7 +38,7 @@ export function FloatingControls({
         type="button"
         onClick={onZoomOutAction}
         aria-label="Zoom out"
-        className="flex h-10 w-10 items-center justify-center text-ink transition-colors duration-(--duration-fast) ease-editorial hover:bg-well"
+        className="flex h-10 w-10 items-center justify-center text-ink transition-colors duration-(--duration-fast) ease-editorial hover:bg-well focus-visible:outline-offset-[-2px]"
       >
         −
       </button>

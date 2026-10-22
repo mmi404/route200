@@ -102,6 +102,49 @@ export function zoneEventHistory(
     .sort((a, b) => (a.dateRangeEnd < b.dateRangeEnd ? -1 : a.dateRangeEnd > b.dateRangeEnd ? 1 : 0));
 }
 
+/**
+ * Bounding box covering a set of zone features' own geometry, as
+ * [[west, south], [east, north]], the shape MapLibre's fitBounds expects.
+ * Used to reframe the camera when the kind filter changes which zones are
+ * on screen (DESIGN_SPEC.md's `allZonesBounds` covers all zones; this
+ * covers whatever subset is actually showing). Returns null for an empty
+ * feature list, since there is nothing to frame.
+ */
+export function zoneFeaturesBounds(
+  features: ZoneFeature[],
+): [[number, number], [number, number]] | null {
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+
+  const visit = (lng: number, lat: number) => {
+    if (lng < west) west = lng;
+    if (lng > east) east = lng;
+    if (lat < south) south = lat;
+    if (lat > north) north = lat;
+  };
+
+  for (const feature of features) {
+    const { geometry } = feature;
+    if (geometry.type === "Polygon") {
+      geometry.coordinates.forEach((ring) =>
+        ring.forEach(([lng, lat]) => visit(lng, lat)),
+      );
+    } else {
+      geometry.coordinates.forEach((polygon) =>
+        polygon.forEach((ring) => ring.forEach(([lng, lat]) => visit(lng, lat))),
+      );
+    }
+  }
+
+  if (!Number.isFinite(west) || !Number.isFinite(south)) return null;
+  return [
+    [west, south],
+    [east, north],
+  ];
+}
+
 /** Whole-day index since the Unix epoch, for integer slider math. */
 export function isoToDayIndex(iso: string): number {
   return Math.floor(Date.parse(`${iso}T00:00:00.000Z`) / 86_400_000);

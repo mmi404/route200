@@ -8,6 +8,7 @@ import {
   BAND_RANK,
   dateRangeOfEvents,
   zoneEventHistory,
+  zoneFeaturesBounds,
   zoneStatus,
   type DateWindow,
   type KindFilter,
@@ -16,6 +17,7 @@ import {
 } from "../_lib/severity";
 import {
   MapCanvas,
+  type CameraTarget,
   type MapCanvasHandle,
   type StyledZoneFeatureCollection,
 } from "./MapCanvas";
@@ -43,6 +45,13 @@ export function MapExperience({ initialView, initialZoneId }: MapExperienceProps
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(
     initialZoneId ?? null,
   );
+  // The id of the zone selected via keyboard (Enter on a focused row), if
+  // the current selection came from one. Drives autofocus into the inspect
+  // panel below; a mouse selection leaves this null so focus isn't stolen
+  // from someone who didn't ask for it.
+  const [keyboardSelectedZoneId, setKeyboardSelectedZoneId] = useState<
+    string | null
+  >(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
   // The user's own drag of the date slider, if any. Until they touch it,
   // the window simply tracks the full range of the loaded data (below),
@@ -174,12 +183,30 @@ export function MapExperience({ initialView, initialZoneId }: MapExperienceProps
     // known, see MapCanvas.tsx.
   }, [initialView]);
 
-  const handleSelectZone = useCallback((id: string) => {
+  const handleSelectZone = useCallback((id: string, viaKeyboard?: boolean) => {
     setSelectedZoneId(id);
+    setKeyboardSelectedZoneId(viaKeyboard ? id : null);
     setSheetSnap((prev) => (prev === "peek" ? "half" : prev));
   }, []);
 
   const handleBack = useCallback(() => setSelectedZoneId(null), []);
+
+  // Reframe the camera to the zones the kind filter actually leaves on
+  // screen, so switching filters while zoomed into one corridor can't leave
+  // the canvas blank (e.g. flown into the Hill Tracts, then filtering to
+  // "River erosion", whose zones are all in the Jamuna corridor). Computed
+  // during render (React's documented "adjust state while rendering"
+  // pattern, not an effect: https://react.dev/learn/you-might-not-need-an-effect)
+  // so the initial mount (filter already matches its own default) doesn't
+  // fly anywhere, and only an actual filter change triggers a move, with no
+  // extra render-after-commit round trip.
+  const [renderedKindFilter, setRenderedKindFilter] = useState(kindFilter);
+  const [filterCamera, setFilterCamera] = useState<CameraTarget | null>(null);
+  if (kindFilter !== renderedKindFilter) {
+    setRenderedKindFilter(kindFilter);
+    const bounds = zoneFeaturesBounds(filteredFeatures);
+    setFilterCamera(bounds ? { kind: "bounds", bounds } : null);
+  }
 
   if (error) {
     return (
@@ -217,6 +244,9 @@ export function MapExperience({ initialView, initialZoneId }: MapExperienceProps
           selectedZone={selectedZone}
           selectedStatus={selectedStatus}
           selectedHistory={selectedHistory}
+          selectedZoneAutoFocus={
+            selectedZoneId !== null && selectedZoneId === keyboardSelectedZoneId
+          }
           onBackAction={handleBack}
         />
         <div className="relative flex-1">
@@ -229,6 +259,7 @@ export function MapExperience({ initialView, initialZoneId }: MapExperienceProps
             onHoverZone={setHoveredZoneId}
             onSelectZone={handleSelectZone}
             initialCamera={initialCamera}
+            externalCamera={filterCamera}
             reducedMotion={reducedMotion}
           />
           <FloatingControls
@@ -254,6 +285,9 @@ export function MapExperience({ initialView, initialZoneId }: MapExperienceProps
         selectedZone={selectedZone}
         selectedStatus={selectedStatus}
         selectedHistory={selectedHistory}
+        selectedZoneAutoFocus={
+          selectedZoneId !== null && selectedZoneId === keyboardSelectedZoneId
+        }
         onBackAction={handleBack}
         reducedMotion={reducedMotion}
       />

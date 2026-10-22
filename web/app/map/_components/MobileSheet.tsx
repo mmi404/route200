@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from "react";
 import type { ChangeEvent, ZoneFeature } from "@/lib/types";
 import type {
   DateWindow,
@@ -31,10 +34,13 @@ type MobileSheetProps = {
   entries: ZoneListEntry[];
   hoveredZoneId: string | null;
   onHoverZoneAction: (id: string | null) => void;
-  onSelectZoneAction: (id: string) => void;
+  onSelectZoneAction: (id: string, viaKeyboard?: boolean) => void;
   selectedZone: ZoneFeature | null;
   selectedStatus: ZoneStatus | null;
   selectedHistory: ChangeEvent[];
+  /** See ZoneRail's prop of the same name: moves focus into the inspect
+   *  panel when the current selection came from the keyboard. */
+  selectedZoneAutoFocus?: boolean;
   onBackAction: () => void;
   reducedMotion: boolean;
   className?: string;
@@ -81,6 +87,7 @@ export function MobileSheet({
   selectedZone,
   selectedStatus,
   selectedHistory,
+  selectedZoneAutoFocus = false,
   onBackAction,
   reducedMotion,
   className = "",
@@ -121,15 +128,34 @@ export function MobileSheet({
     setDragHeightPx(next);
   }
 
+  /** Advances to the next snap point in peek -> half -> full -> peek order,
+   *  the same cycle a tap-without-drag on the handle already uses, now
+   *  shared with the keyboard handler below so there is one place that
+   *  knows the cycle order. */
+  function cycleSnap() {
+    const order: SheetSnap[] = ["peek", "half", "full"];
+    onSnapChangeAction(order[(order.indexOf(snap) + 1) % order.length]);
+  }
+
   function handlePointerUp() {
     if (movedRef.current && dragHeightPx !== null) {
       onSnapChangeAction(nearestSnap(dragHeightPx, viewportHeight));
     } else if (!movedRef.current) {
-      const order: SheetSnap[] = ["peek", "half", "full"];
-      onSnapChangeAction(order[(order.indexOf(snap) + 1) % order.length]);
+      cycleSnap();
     }
     dragStartRef.current = null;
     setDragHeightPx(null);
+  }
+
+  /** Enter/Space cycles the snap point the same way a tap on the handle
+   *  does, since the handle is only reachable by drag or pointer tap
+   *  otherwise, which a keyboard user can't perform. */
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") {
+      return;
+    }
+    event.preventDefault();
+    cycleSnap();
   }
 
   return (
@@ -145,7 +171,15 @@ export function MobileSheet({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="flex shrink-0 cursor-grab items-center justify-center border-b border-rule py-2.5 touch-none active:cursor-grabbing"
+        onKeyDown={handleKeyDown}
+        // py-4 (16px top and bottom) takes the handle's tap target from
+        // about 24px to about 37px, roughly half again as tall, without
+        // overflowing the sheet's fixed 88px "peek" height once the
+        // summary row below it is accounted for (a bigger step, py-6,
+        // pushes the combined content past 88px and clips the summary
+        // text). The visible drag dot stays the same 4px (h-1) thickness;
+        // only the padding around it grew.
+        className="flex shrink-0 cursor-grab items-center justify-center border-b border-rule py-4 touch-none active:cursor-grabbing focus-visible:outline-offset-[-2px]"
         role="button"
         tabIndex={0}
         aria-label="Resize the zone panel"
@@ -164,6 +198,7 @@ export function MobileSheet({
               zone={selectedZone}
               status={selectedStatus}
               history={selectedHistory}
+              autoFocusBack={selectedZoneAutoFocus}
               onBack={onBackAction}
             />
           ) : (

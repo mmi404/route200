@@ -22,10 +22,15 @@ type ZoneRailProps = {
   entries: ZoneListEntry[];
   hoveredZoneId: string | null;
   onHoverZoneAction: (id: string | null) => void;
-  onSelectZoneAction: (id: string) => void;
+  onSelectZoneAction: (id: string, viaKeyboard?: boolean) => void;
   selectedZone: ZoneFeature | null;
   selectedStatus: ZoneStatus | null;
   selectedHistory: ChangeEvent[];
+  /** True when the current selection just happened via keyboard, so the
+   *  inspect panel should move focus to itself instead of leaving it to
+   *  fall back to <body> (the selected row is unmounted when the list is
+   *  replaced by the panel). */
+  selectedZoneAutoFocus?: boolean;
   onBackAction: () => void;
   className?: string;
 };
@@ -50,6 +55,7 @@ export function ZoneRail({
   selectedZone,
   selectedStatus,
   selectedHistory,
+  selectedZoneAutoFocus = false,
   onBackAction,
   className = "",
 }: ZoneRailProps) {
@@ -62,6 +68,7 @@ export function ZoneRail({
           zone={selectedZone}
           status={selectedStatus}
           history={selectedHistory}
+          autoFocusBack={selectedZoneAutoFocus}
           onBack={onBackAction}
         />
       ) : (

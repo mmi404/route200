@@ -25,7 +25,11 @@ type ZoneListPanelProps = {
   entries: ZoneListEntry[];
   hoveredZoneId: string | null;
   onHoverZoneAction: (id: string | null) => void;
-  onSelectZoneAction: (id: string) => void;
+  /** `viaKeyboard` is true when the row was activated by Enter/Space
+   *  rather than a pointer click (a synthetic click from a key press has
+   *  `detail: 0`; a real pointer click has `detail >= 1`), so the caller
+   *  can move focus into the inspect panel only for a keyboard selection. */
+  onSelectZoneAction: (id: string, viaKeyboard?: boolean) => void;
   className?: string;
 };
 
@@ -50,6 +54,12 @@ export function ZoneListPanel({
 }: ZoneListPanelProps) {
   return (
     <div className={`flex flex-col gap-6 ${className}`}>
+      {/* overflow-hidden clips each button's own focus-visible outline,
+          since the default outline-offset (2px, set globally) draws it
+          outside the button's box and into the clipped region. Each button
+          pulls its outline inward instead (focus-visible:outline-offset-
+          [-2px]) so it stays inside the clip and is actually visible on
+          focus. Same fix as FloatingControls.tsx's zoom buttons. */}
       <div
         className="grid grid-cols-3 overflow-hidden rounded-xs border border-rule"
         role="group"
@@ -61,7 +71,7 @@ export function ZoneListPanel({
             type="button"
             aria-pressed={kindFilter === option.value}
             onClick={() => onKindFilterChangeAction(option.value)}
-            className={`type-small border-r border-rule px-2 py-2 text-center last:border-r-0 ${
+            className={`type-small border-r border-rule px-2 py-2 text-center last:border-r-0 focus-visible:outline-offset-[-2px] ${
               kindFilter === option.value
                 ? "bg-river-tint font-medium text-river"
                 : "text-ink-muted hover:bg-well"
@@ -89,7 +99,7 @@ export function ZoneListPanel({
                 type="button"
                 onMouseEnter={() => onHoverZoneAction(id)}
                 onMouseLeave={() => onHoverZoneAction(null)}
-                onClick={() => onSelectZoneAction(id)}
+                onClick={(event) => onSelectZoneAction(id, event.detail === 0)}
                 className={`flex w-full flex-col gap-1 px-1 py-3 text-left transition-colors duration-(--duration-fast) ease-editorial ${
                   hoveredZoneId === id ? "bg-well" : ""
                 }`}

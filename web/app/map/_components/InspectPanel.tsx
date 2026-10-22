@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   ButtonLink,
   SeverityBadge,
@@ -16,6 +17,16 @@ type InspectPanelProps = {
   status: ZoneStatus;
   /** The zone's full event history, for the strip chart. */
   history: ChangeEvent[];
+  /**
+   * True when this zone was just selected via keyboard (Enter on a focused
+   * zone-list row). The row that had focus is unmounted the moment this
+   * panel replaces the list, which would otherwise drop focus back to
+   * <body>; this moves it onto the panel's own back button instead. Keyed
+   * off the zone's id changing, not the render count, so it fires once per
+   * new selection and never steals focus on an unrelated re-render (e.g.
+   * the date window changing while this same zone stays selected).
+   */
+  autoFocusBack?: boolean;
   onBack: () => void;
   className?: string;
 };
@@ -24,15 +35,22 @@ export function InspectPanel({
   zone,
   status,
   history,
+  autoFocusBack = false,
   onBack,
   className = "",
 }: InspectPanelProps) {
   const { properties } = zone;
   const latest = status.event ?? history[history.length - 1];
+  const backButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (autoFocusBack) backButtonRef.current?.focus();
+  }, [properties.id, autoFocusBack]);
 
   return (
     <div className={`flex flex-col gap-5 ${className}`}>
       <button
+        ref={backButtonRef}
         type="button"
         onClick={onBack}
         className="type-small self-start text-ink-muted hover:text-river"
