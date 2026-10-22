@@ -19,7 +19,7 @@ Repo: `D:\race\nasaspace\route200` (git, origin `https://github.com/mmi404/route
 - [x] **M4 — Map experience**: MapLibre (OpenFreeMap tiles, no API key needed), zone overlays, before/after change slider, severity legend, inspect panel.
 - [x] **M5 — Alert signup UI**: SMS/voice opt-in form (UI only, posts to mock API).
 - [x] **M6 — Polish & responsive**: QA pass, bug fixes, favicon/OG image, mobile verified (see session log). Animations already covered by M1's motion rules, no separate pass needed.
-- [ ] **M7 — Build/test/deploy prep**: `npm run build` clean, lint clean, commit, push to `website` branch, write handoff notes for Tanim on the real-data contract, update README status line.
+- [x] **M7 — Build/test/deploy prep**: clean rebuild from scratch (deleted `.next`, reran tsc/eslint/build) verified, every module committed in reviewed, meaningful chunks, `docs/WEB_DATA_CONTRACT.md` extended to cover `/api/alerts`, README status line and `web/README.md` rewritten, pushed to `website` on origin.
 
 ## Decisions log (so a fresh session doesn't re-decide these)
 
