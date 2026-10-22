@@ -6,6 +6,7 @@ import {
   Noto_Sans_Bengali,
 } from "next/font/google";
 import "./globals.css";
+import { SiteHeader } from "./_landing/SiteHeader";
 
 /*
  * Font stack (see DESIGN_SPEC.md, "Type"):
@@ -78,6 +79,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${anekBangla.variable} ${plexSans.variable} ${notoBengali.variable} ${plexMono.variable} h-full`}
     >
       <body className="flex min-h-full flex-col bg-paper text-ink">
+        <SiteHeader />
         {children}
       </body>
     </html>

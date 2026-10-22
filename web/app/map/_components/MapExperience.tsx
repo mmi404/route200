@@ -19,7 +19,6 @@ import {
   type MapCanvasHandle,
   type StyledZoneFeatureCollection,
 } from "./MapCanvas";
-import { MapTopBar } from "./MapTopBar";
 import { FloatingControls } from "./FloatingControls";
 import { ZoneRail } from "./ZoneRail";
 import { MobileSheet, type SheetSnap } from "./MobileSheet";
@@ -200,8 +199,7 @@ export function MapExperience({ initialView, initialZoneId }: MapExperienceProps
   }
 
   return (
-    <div className="flex h-dvh flex-col">
-      <MapTopBar />
+    <div className="flex h-[calc(100dvh-var(--spacing-header))] flex-col">
       <div className="relative flex flex-1 overflow-hidden">
         <ZoneRail
           className="hidden lg:flex"

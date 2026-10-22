@@ -48,13 +48,28 @@ export interface MapCanvasHandle {
 
 type MapCanvasProps = {
   zones: StyledZoneFeatureCollection;
-  selectedZoneId: string | null;
-  selectedZoneCenter: { lat: number; lng: number } | null;
-  hoveredZoneId: string | null;
-  onHoverZone: (id: string | null) => void;
-  onSelectZone: (id: string) => void;
+  selectedZoneId?: string | null;
+  selectedZoneCenter?: { lat: number; lng: number } | null;
+  hoveredZoneId?: string | null;
+  onHoverZone?: (id: string | null) => void;
+  onSelectZone?: (id: string) => void;
   initialCamera: CameraTarget;
   reducedMotion: boolean;
+  /**
+   * False for the landing page's map teaser (DESIGN_SPEC.md 7a#4): no
+   * scroll-zoom, drag, click or hover handling, so the page scrolls
+   * normally over the map instead of the map capturing the gesture. The
+   * camera is then driven externally via `externalCamera` rather than by
+   * zone selection. Defaults to true (the full /map experience).
+   */
+  interactive?: boolean;
+  /**
+   * Non-interactive mode only: whenever this changes, the camera flies (or
+   * jumps, under reduced motion) here, independent of zone selection. Used
+   * by the map teaser's scroll-driven camera handoff between corridor
+   * views. Ignored once `interactive` is true.
+   */
+  externalCamera?: CameraTarget | null;
 };
 
 const SOURCE_ID = "zones";
@@ -202,13 +217,15 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
   function MapCanvas(
     {
       zones,
-      selectedZoneId,
-      selectedZoneCenter,
-      hoveredZoneId,
+      selectedZoneId = null,
+      selectedZoneCenter = null,
+      hoveredZoneId = null,
       onHoverZone,
       onSelectZone,
       initialCamera,
       reducedMotion,
+      interactive = true,
+      externalCamera = null,
     },
     ref,
   ) {
@@ -218,6 +235,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
     const zonesRef = useRef(zones);
     const hoveredRef = useRef<string | null>(null);
     const firstSelectionSyncRef = useRef(true);
+    const lastExternalCameraRef = useRef<string | null>(null);
 
     zonesRef.current = zones;
 
@@ -245,6 +263,16 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       });
       mapRef.current = map;
 
+      if (!interactive) {
+        map.scrollZoom.disable();
+        map.boxZoom.disable();
+        map.dragRotate.disable();
+        map.dragPan.disable();
+        map.keyboard.disable();
+        map.doubleClickZoom.disable();
+        map.touchZoomRotate.disable();
+      }
+
       map.on("load", () => {
         quietBasemap(map);
         addZoneLayers(map, reducedMotion);
@@ -258,20 +286,22 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         loadedRef.current = true;
       });
 
-      map.on("mousemove", FILL_LAYER_ID, (event) => {
-        const feature = event.features?.[0];
-        const id = (feature?.properties as { id?: string } | undefined)?.id ?? null;
-        if (id !== hoveredRef.current) onHoverZone(id);
-        map.getCanvas().style.cursor = id ? "pointer" : "";
-      });
-      map.on("mouseleave", FILL_LAYER_ID, () => {
-        onHoverZone(null);
-        map.getCanvas().style.cursor = "";
-      });
-      map.on("click", FILL_LAYER_ID, (event) => {
-        const id = (event.features?.[0]?.properties as { id?: string } | undefined)?.id;
-        if (id) onSelectZone(id);
-      });
+      if (interactive) {
+        map.on("mousemove", FILL_LAYER_ID, (event) => {
+          const feature = event.features?.[0];
+          const id = (feature?.properties as { id?: string } | undefined)?.id ?? null;
+          if (id !== hoveredRef.current) onHoverZone?.(id);
+          map.getCanvas().style.cursor = id ? "pointer" : "";
+        });
+        map.on("mouseleave", FILL_LAYER_ID, () => {
+          onHoverZone?.(null);
+          map.getCanvas().style.cursor = "";
+        });
+        map.on("click", FILL_LAYER_ID, (event) => {
+          const id = (event.features?.[0]?.properties as { id?: string } | undefined)?.id;
+          if (id) onSelectZone?.(id);
+        });
+      }
 
       return () => {
         map.remove();
@@ -317,6 +347,33 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         }
       }
     }, [selectedZoneId, selectedZoneCenter, reducedMotion]);
+
+    // Non-interactive mode's externally driven camera (the map teaser's
+    // scroll-driven handoff between corridor views). Guarded by a
+    // stringified last-applied value so a re-render that passes an
+    // equivalent-but-new object literal doesn't re-trigger flyTo, and by
+    // loadedRef so this never fires before the style has finished loading.
+    useEffect(() => {
+      const map = mapRef.current;
+      if (!map || !loadedRef.current || !externalCamera) return;
+      const key = JSON.stringify(externalCamera);
+      if (key === lastExternalCameraRef.current) return;
+      lastExternalCameraRef.current = key;
+
+      if (externalCamera.kind === "point") {
+        const target = { center: externalCamera.center, zoom: externalCamera.zoom };
+        if (reducedMotion) {
+          map.jumpTo(target);
+        } else {
+          map.flyTo({ ...target, duration: MOTION.mapFlyMs, easing: MOTION.ease });
+        }
+      } else {
+        map.fitBounds(externalCamera.bounds, {
+          padding: 48,
+          duration: reducedMotion ? 0 : MOTION.mapFlyMs,
+        });
+      }
+    }, [externalCamera, reducedMotion]);
 
     // Hover feature-state, for the fill opacity bump on the layer paint.
     useEffect(() => {

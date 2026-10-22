@@ -42,15 +42,8 @@ async function MapRoute({ searchParams }: { searchParams: MapSearchParams }) {
 
 function MapLoadingShell() {
   return (
-    <div className="flex h-dvh flex-col">
-      <div className="flex h-header shrink-0 items-center border-b border-rule bg-paper px-gutter">
-        <p className="type-h3 whitespace-nowrap">
-          Route<span className="text-ok">200</span>
-        </p>
-      </div>
-      <div className="flex flex-1 items-center justify-center bg-paper">
-        <p className="type-small text-ink-subtle">Loading zone data…</p>
-      </div>
+    <div className="flex h-[calc(100dvh-var(--spacing-header))] items-center justify-center bg-paper">
+      <p className="type-small text-ink-subtle">Loading zone data…</p>
     </div>
   );
 }
