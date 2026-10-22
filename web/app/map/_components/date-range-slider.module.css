@@ -1,0 +1,61 @@
+/*
+ * Native range inputs need pseudo-element styling that Tailwind utilities
+ * cannot reach (::-webkit-slider-thumb, ::-moz-range-thumb). Colors below
+ * are the design tokens' CSS variables (Tailwind v4 emits each theme color
+ * as --color-*), not new values: see DESIGN_SPEC.md section 2 and 4.
+ */
+.rangeInput {
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transform: translateY(-50%);
+}
+
+.rangeInput::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 1px;
+}
+
+.rangeInput::-moz-range-track {
+  background: transparent;
+  height: 1px;
+}
+
+.rangeInput::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-xs);
+  background: var(--color-river);
+  border: 1.5px solid var(--color-paper);
+  box-shadow: 0 0 0 1px var(--color-river);
+  cursor: pointer;
+}
+
+.rangeInput::-moz-range-thumb {
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-xs);
+  background: var(--color-river);
+  border: 1.5px solid var(--color-paper);
+  box-shadow: 0 0 0 1px var(--color-river);
+  cursor: pointer;
+}
+
+.rangeInput:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-river);
+  outline-offset: 2px;
+}
+
+.rangeInput:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-river);
+  outline-offset: 2px;
+}
