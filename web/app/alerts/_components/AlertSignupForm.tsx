@@ -2,16 +2,27 @@
 
 import { useEffect, useId, useMemo, useState, type FormEvent } from "react";
 import { Button, SectionLabel } from "@/app/components";
-import type { ZoneFeature, ZoneFeatureCollection } from "@/lib/types";
+import { format, t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
+import type { ZoneFeature, ZoneFeatureCollection, ZoneProperties } from "@/lib/types";
 
 export type AlertChannels = {
   sms: boolean;
   voice: boolean;
 };
 
-export type AlertLanguage = "bn" | "en";
+export type AlertLanguage = Locale;
 
 export type AlertSignupFormProps = {
+  /** The page's resolved UI locale (DESIGN_SPEC.md's cookie-based toggle),
+   *  passed down from a server-rendered parent. Drives every static label,
+   *  legend, button and message in this form. Also seeds the "Language"
+   *  radio's initial value below, since that field starts out matching
+   *  whatever language the visitor is already browsing in, though it
+   *  stays independently changeable (a household may want Bangla voice
+   *  calls while browsing the site in English, or the reverse). */
+  locale: Locale;
   /**
    * Pre-selects an area: from a `?zone=` query param on /alerts, or passed
    * directly by the landing page / the map inspect panel's "Get alerts for
@@ -35,17 +46,27 @@ function toE164(nationalNumber: string): string {
   return `+880${nationalNumber.slice(1)}`;
 }
 
-const ALERT_PREVIEW: Record<AlertLanguage, (area: string) => string> = {
-  en: (area) =>
-    `Route200 alert: ${area} has crossed the risk threshold. Open the map for details, or wait for our voice call. Reply STOP to unsubscribe.`,
-  bn: (area) =>
-    `Route200 সতর্কতা: ${area}-এ ঝুঁকির সীমা অতিক্রম করেছে। বিস্তারিত জানতে মানচিত্র দেখুন, নয়তো আমাদের ফোন কলের জন্য অপেক্ষা করুন। বন্ধ করতে উত্তরে STOP লিখুন।`,
-};
+/** The area select's own option text: the zone's Bangla name alone when
+ *  the UI locale is Bangla (it already reads as a complete, natural
+ *  phrase, locality included), "{name} ({district})" otherwise. */
+function zoneOptionLabel(properties: ZoneProperties, locale: Locale): string {
+  if (locale === "bn" && properties.nameBn) return properties.nameBn;
+  return `${properties.name} (${properties.district})`;
+}
 
-const AREA_PLACEHOLDER: Record<AlertLanguage, string> = {
-  en: "your area",
-  bn: "আপনার এলাকা",
-};
+/** The area name as it reads inside a sentence (the SMS preview, the
+ *  success message): the zone's Bangla name alone in Bangla (same reason
+ *  as above), "{name}, {district}" otherwise. Takes whichever language
+ *  context the surrounding sentence is actually in, which is the alert
+ *  recipient's chosen `language` for the SMS preview and the page's own
+ *  `locale` for the success state, not always the same value. This is the
+ *  actual fix for the QA-flagged issue where the Bangla SMS preview
+ *  spliced a raw English zone name into a Bangla sentence.
+ */
+function zoneSentenceLabel(properties: ZoneProperties, lang: Locale): string {
+  if (lang === "bn" && properties.nameBn) return properties.nameBn;
+  return `${properties.name}, ${properties.district}`;
+}
 
 /**
  * The shared alert signup form: embedded in the landing page's "Get
@@ -58,9 +79,11 @@ const AREA_PLACEHOLDER: Record<AlertLanguage, string> = {
  * the swap-in note.
  */
 export function AlertSignupForm({
+  locale,
   defaultZoneId,
   className = "",
 }: AlertSignupFormProps) {
+  const copy = translations.alertForm;
   const phoneId = useId();
   const zoneSelectId = useId();
   const smsId = useId();
@@ -77,7 +100,7 @@ export function AlertSignupForm({
     sms: true,
     voice: true,
   });
-  const [language, setLanguage] = useState<AlertLanguage>("bn");
+  const [language, setLanguage] = useState<AlertLanguage>(locale);
 
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -128,23 +151,24 @@ export function AlertSignupForm({
     [zones, effectiveZoneId],
   );
 
-  const areaLabel = selectedZone
-    ? `${selectedZone.properties.name}, ${selectedZone.properties.district}`
-    : AREA_PLACEHOLDER[language];
+  const previewAreaLabel = selectedZone
+    ? zoneSentenceLabel(selectedZone.properties, language)
+    : t(copy.areaPlaceholder, language);
 
-  const previewText = ALERT_PREVIEW[language](areaLabel);
+  const previewText = format(t(copy.smsPreviewTemplate, language), {
+    area: previewAreaLabel,
+  });
 
   function validate(): FieldErrors {
     const next: FieldErrors = {};
     if (!PHONE_PATTERN.test(phone)) {
-      next.phone =
-        "Check this: enter an 11-digit mobile number starting with 01, like 01712345678.";
+      next.phone = t(copy.phoneErrorFormat, locale);
     }
     if (!effectiveZoneId) {
-      next.zoneId = "Check this: choose the area you want alerts for.";
+      next.zoneId = t(copy.zoneErrorRequired, locale);
     }
     if (!channels.sms && !channels.voice) {
-      next.channels = "Check this: choose at least one way to be reached.";
+      next.channels = t(copy.channelsErrorRequired, locale);
     }
     return next;
   }
@@ -169,11 +193,14 @@ export function AlertSignupForm({
         }),
       });
       if (!response.ok) throw new Error("Signup request failed");
-      setSuccess({ areaLabel, channels });
+      setSuccess({
+        areaLabel: selectedZone
+          ? zoneSentenceLabel(selectedZone.properties, locale)
+          : t(copy.areaPlaceholder, locale),
+        channels,
+      });
     } catch {
-      setSubmitError(
-        "Check this: the signup did not go through. Try again in a moment.",
-      );
+      setSubmitError(t(copy.submitErrorGeneric, locale));
     } finally {
       setSubmitting(false);
     }
@@ -192,21 +219,23 @@ export function AlertSignupForm({
   if (success) {
     const channelsLabel =
       success.channels.sms && success.channels.voice
-        ? "SMS and a Bangla voice call"
+        ? t(copy.successChannelsBoth, locale)
         : success.channels.sms
-          ? "SMS"
-          : "a Bangla voice call";
+          ? t(copy.successChannelsSmsOnly, locale)
+          : t(copy.successChannelsVoiceOnly, locale);
     return (
       <div className={`${containerBase} border border-rule border-t-2 border-t-ok`}>
-        <p className="type-eyebrow text-ok">200 OK</p>
-        <h3 className="type-h3 mt-3">You are signed up for alerts.</h3>
+        <p className="type-eyebrow text-ok">{t(copy.successEyebrow, locale)}</p>
+        <h3 className="type-h3 mt-3">{t(copy.successHeading, locale)}</h3>
         <p className="type-small mt-3 text-ink-muted">
-          We will reach you about {success.areaLabel} by {channelsLabel}, the
-          moment our engine flags real risk there.
+          {format(t(copy.successBody, locale), {
+            area: success.areaLabel,
+            channelsLabel,
+          })}
         </p>
         <div className="mt-6">
           <Button variant="secondary" onClick={addAnotherArea}>
-            Add another area
+            {t(copy.addAnotherArea, locale)}
           </Button>
         </div>
       </div>
@@ -219,12 +248,12 @@ export function AlertSignupForm({
       noValidate
       className={`${containerBase} border border-rule`}
     >
-      <SectionLabel>Alerts by SMS and voice call</SectionLabel>
+      <SectionLabel>{t(copy.sectionLabel, locale)}</SectionLabel>
 
       <div className="mt-6 flex flex-col gap-6">
         <div>
           <label htmlFor={phoneId} className="type-small block font-medium">
-            Phone number
+            {t(copy.phoneNumberLabel, locale)}
           </label>
           <div className="mt-2 flex h-12 rounded-t-xs border-b-[1.5px] border-ink bg-paper">
             <span className="flex items-center pl-3 font-mono text-ink-muted">
@@ -247,9 +276,7 @@ export function AlertSignupForm({
               className="type-body min-w-0 flex-1 bg-transparent px-2 outline-none"
             />
           </div>
-          <p className="type-meta mt-1 text-ink-subtle">
-            We will text and call this number only about risk in your area.
-          </p>
+          <p className="type-meta mt-1 text-ink-subtle">{t(copy.phoneHelperText, locale)}</p>
           {errors.phone && (
             <p id={`${phoneId}-error`} className="type-small mt-1 text-sev-high-ink">
               {errors.phone}
@@ -259,7 +286,7 @@ export function AlertSignupForm({
 
         <div>
           <label htmlFor={zoneSelectId} className="type-small block font-medium">
-            Your area
+            {t(copy.yourAreaLabel, locale)}
           </label>
           <select
             id={zoneSelectId}
@@ -275,24 +302,24 @@ export function AlertSignupForm({
           >
             <option value="" disabled>
               {zonesFailed
-                ? "Areas failed to load"
+                ? t(copy.areasFailedToLoad, locale)
                 : grouped
-                  ? "Select your area"
-                  : "Loading zone data"}
+                  ? t(copy.selectYourArea, locale)
+                  : t(copy.loadingZoneData, locale)}
             </option>
             {grouped && (
               <>
-                <optgroup label="Jamuna corridor">
+                <optgroup label={t(copy.optgroupJamuna, locale)}>
                   {grouped.erosion.map((zone) => (
                     <option key={zone.properties.id} value={zone.properties.id}>
-                      {zone.properties.name} ({zone.properties.district})
+                      {zoneOptionLabel(zone.properties, locale)}
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="Chattogram Hill Tracts">
+                <optgroup label={t(copy.optgroupHillTracts, locale)}>
                   {grouped.landslide.map((zone) => (
                     <option key={zone.properties.id} value={zone.properties.id}>
-                      {zone.properties.name} ({zone.properties.district})
+                      {zoneOptionLabel(zone.properties, locale)}
                     </option>
                   ))}
                 </optgroup>
@@ -300,9 +327,7 @@ export function AlertSignupForm({
             )}
           </select>
           {zonesFailed && (
-            <p className="type-meta mt-1 text-ink-subtle">
-              Refresh the page to try loading the area list again.
-            </p>
+            <p className="type-meta mt-1 text-ink-subtle">{t(copy.refreshToRetryAreas, locale)}</p>
           )}
           {errors.zoneId && (
             <p id={`${zoneSelectId}-error`} className="type-small mt-1 text-sev-high-ink">
@@ -312,7 +337,7 @@ export function AlertSignupForm({
         </div>
 
         <fieldset className="m-0 border-0 p-0">
-          <legend className="type-small p-0 font-medium">How to reach you</legend>
+          <legend className="type-small p-0 font-medium">{t(copy.howToReachYouLegend, locale)}</legend>
           <div className="mt-2 flex flex-col gap-2">
             <label htmlFor={smsId} className="type-body flex items-center gap-2">
               <input
@@ -325,7 +350,7 @@ export function AlertSignupForm({
                 }}
                 className="size-4 accent-river"
               />
-              SMS
+              {t(copy.channelSms, locale)}
             </label>
             <label htmlFor={voiceId} className="type-body flex items-center gap-2">
               <input
@@ -338,7 +363,7 @@ export function AlertSignupForm({
                 }}
                 className="size-4 accent-river"
               />
-              Bangla voice call
+              {t(copy.channelVoice, locale)}
             </label>
           </div>
           {errors.channels && (
@@ -347,7 +372,7 @@ export function AlertSignupForm({
         </fieldset>
 
         <fieldset className="m-0 border-0 p-0">
-          <legend className="type-small p-0 font-medium">Language</legend>
+          <legend className="type-small p-0 font-medium">{t(copy.languageLegend, locale)}</legend>
           <div className="mt-2 flex gap-6">
             <label htmlFor={langBnId} className="type-body flex items-center gap-2">
               <input
@@ -359,7 +384,7 @@ export function AlertSignupForm({
                 onChange={() => setLanguage("bn")}
                 className="size-4 accent-river"
               />
-              বাংলা
+              {t(copy.languageOptionBn, locale)}
             </label>
             <label htmlFor={langEnId} className="type-body flex items-center gap-2">
               <input
@@ -371,28 +396,24 @@ export function AlertSignupForm({
                 onChange={() => setLanguage("en")}
                 className="size-4 accent-river"
               />
-              English
+              {t(copy.languageOptionEn, locale)}
             </label>
           </div>
         </fieldset>
 
         <div className="bg-well p-4">
-          <p className="type-meta text-ink-subtle">This is what your SMS will say:</p>
+          <p className="type-meta text-ink-subtle">{t(copy.smsPreviewIntro, locale)}</p>
           <p className="type-meta mt-2 text-ink" lang={language}>
             {previewText}
           </p>
         </div>
 
-        <p className="type-meta text-ink-subtle">
-          By submitting, you agree to receive automated SMS and voice alerts
-          about risk changes in your selected area. Standard message rates
-          may apply.
-        </p>
+        <p className="type-meta text-ink-subtle">{t(copy.consentText, locale)}</p>
 
         {submitError && <p className="type-small text-sev-high-ink">{submitError}</p>}
 
         <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
-          {submitting ? "Sending..." : "Get alerts for my area"}
+          {submitting ? t(copy.submitSending, locale) : t(copy.submitDefault, locale)}
         </Button>
       </div>
     </form>

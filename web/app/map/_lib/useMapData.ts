@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { ChangeEvent, ZoneFeatureCollection } from "@/lib/types";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
 
 interface MapData {
   zones: ZoneFeatureCollection | null;
@@ -10,6 +13,12 @@ interface MapData {
   error: string | null;
 }
 
+// A narrow "what went wrong" kind, not the user-facing text itself: the
+// fetch effect below runs once and never needs to re-run when the locale
+// toggle changes, so the actual localized message is produced at return
+// time from this kind instead of being baked into state at catch time.
+type ErrorKind = "service" | "unknown";
+
 /**
  * Fetches /api/zones and /api/change-events once, client-side. The map
  * needs the browser regardless (MapLibre), so there is no benefit to
@@ -17,11 +26,11 @@ interface MapData {
  * place instead of splitting it across a server wrapper and a client
  * re-fetch.
  */
-export function useMapData(): MapData {
+export function useMapData(locale: Locale = "bn"): MapData {
   const [zones, setZones] = useState<ZoneFeatureCollection | null>(null);
   const [events, setEvents] = useState<ChangeEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<ErrorKind | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,7 +42,7 @@ export function useMapData(): MapData {
           fetch("/api/change-events"),
         ]);
         if (!zonesRes.ok || !eventsRes.ok) {
-          throw new Error("The map data service did not respond.");
+          throw new Error("service-unavailable");
         }
         const zonesJson = (await zonesRes.json()) as ZoneFeatureCollection;
         const eventsJson = (await eventsRes.json()) as ChangeEvent[];
@@ -43,8 +52,10 @@ export function useMapData(): MapData {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Could not load zone data.",
+          setErrorKind(
+            err instanceof Error && err.message === "service-unavailable"
+              ? "service"
+              : "unknown",
           );
         }
       } finally {
@@ -57,6 +68,15 @@ export function useMapData(): MapData {
       cancelled = true;
     };
   }, []);
+
+  const error = errorKind
+    ? t(
+        errorKind === "service"
+          ? translations.mapPage.errorServiceDidNotRespond
+          : translations.mapPage.errorFallback,
+        locale,
+      )
+    : null;
 
   return { zones, events, loading, error };
 }

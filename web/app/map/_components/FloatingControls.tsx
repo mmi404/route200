@@ -1,4 +1,9 @@
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
+
 type FloatingControlsProps = {
+  locale: Locale;
   onZoomInAction: () => void;
   onZoomOutAction: () => void;
 };
@@ -16,9 +21,11 @@ type FloatingControlsProps = {
  * half-working next to a polished rail and inspect panel.
  */
 export function FloatingControls({
+  locale,
   onZoomInAction,
   onZoomOutAction,
 }: FloatingControlsProps) {
+  const copy = translations.mapPage;
   return (
     // overflow-hidden clips each button's own focus-visible outline, since
     // the default outline-offset (2px, set globally) draws it outside the
@@ -29,7 +36,7 @@ export function FloatingControls({
       <button
         type="button"
         onClick={onZoomInAction}
-        aria-label="Zoom in"
+        aria-label={t(copy.zoomIn, locale)}
         className="flex h-10 w-10 items-center justify-center border-b border-rule text-ink transition-colors duration-(--duration-fast) ease-editorial hover:bg-well focus-visible:outline-offset-[-2px]"
       >
         +
@@ -37,7 +44,7 @@ export function FloatingControls({
       <button
         type="button"
         onClick={onZoomOutAction}
-        aria-label="Zoom out"
+        aria-label={t(copy.zoomOut, locale)}
         className="flex h-10 w-10 items-center justify-center text-ink transition-colors duration-(--duration-fast) ease-editorial hover:bg-well focus-visible:outline-offset-[-2px]"
       >
         −

@@ -1,8 +1,12 @@
 import type { ChangeEvent, SeverityBand } from "@/lib/types";
 import { severityToBand } from "@/lib/types";
 import { formatCitationDate } from "@/app/components";
+import { format, t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
 
 type StripChartProps = {
+  locale: Locale;
   /** Chronological, full history (not limited to the date window): the
    *  chart's job is to show the shift the window is cutting into. */
   events: ChangeEvent[];
@@ -28,11 +32,13 @@ const BAR_SPAN = BAR_BOTTOM - BAR_TOP;
  * by band, dates set under each bar (OWID style, no hover-only tooltip).
  * Inline SVG, since this is a handful of points, not a general chart.
  */
-export function StripChart({ events, className = "" }: StripChartProps) {
+export function StripChart({ locale, events, className = "" }: StripChartProps) {
+  const copy = translations.mapPage;
+
   if (events.length === 0) {
     return (
       <p className={`type-small text-ink-subtle ${className}`}>
-        No change events recorded yet for this zone.
+        {t(copy.noEventsRecorded, locale)}
       </p>
     );
   }
@@ -43,12 +49,15 @@ export function StripChart({ events, className = "" }: StripChartProps) {
   return (
     <figure className={className}>
       <figcaption className="type-eyebrow mb-2 text-ink-muted">
-        Change severity over time
+        {t(copy.changeSeverityOverTime, locale)}
       </figcaption>
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"
-        aria-label={`Severity score for each recorded change event, from ${formatCitationDate(events[0].dateRangeEnd)} to ${formatCitationDate(events[events.length - 1].dateRangeEnd)}.`}
+        aria-label={format(t(copy.stripChartAriaLabel, locale), {
+          start: formatCitationDate(events[0].dateRangeEnd),
+          end: formatCitationDate(events[events.length - 1].dateRangeEnd),
+        })}
         className="w-full"
       >
         <line

@@ -4,16 +4,19 @@ import { HowItWorksSchematic } from "./_landing/HowItWorksSchematic";
 import { MapTeaser } from "./_landing/MapTeaser";
 import { AlertsSection } from "./_landing/AlertsSection";
 import { Footer } from "./_landing/Footer";
+import { getLocale } from "@/lib/locale";
 
-export default function Home() {
+export default async function Home() {
+  const locale = await getLocale();
+
   return (
     <main className="flex flex-1 flex-col">
-      <Hero />
-      <ProblemSection />
-      <HowItWorksSchematic />
-      <MapTeaser />
-      <AlertsSection />
-      <Footer />
+      <Hero locale={locale} />
+      <ProblemSection locale={locale} />
+      <HowItWorksSchematic locale={locale} />
+      <MapTeaser locale={locale} />
+      <AlertsSection locale={locale} />
+      <Footer locale={locale} />
     </main>
   );
 }

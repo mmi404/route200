@@ -7,6 +7,7 @@ import {
 } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "./_landing/SiteHeader";
+import { getLocale } from "@/lib/locale";
 
 /*
  * Font stack (see DESIGN_SPEC.md, "Type"):
@@ -53,6 +54,18 @@ const plexMono = IBM_Plex_Mono({
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://route200.vercel.app";
 
+// The root layout reads the locale cookie directly, with no <Suspense>
+// boundary (there is no child to wrap: the cookie drives <html lang>
+// itself, see the Cache Components migration guide's note on this exact
+// case). That is deliberate: every route under this layout is meant to be
+// request-bound now (PROGRESS.md), not a build-time gap to close. Without
+// this, Next.js still fails to statically prerender its own implicit
+// /_not-found shell (which composes this same layout with no request to
+// read a cookie from), since that one page has no Suspense boundary to
+// defer into. `instant = false` is the documented way to allow a layout
+// to block rather than prerender.
+export const instant = false;
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
@@ -78,14 +91,22 @@ export const viewport: Viewport = {
   colorScheme: "light",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Reads the route200-locale cookie so <html lang> is correct on first
+  // paint, not applied after a client-side hydration flash: the whole
+  // typography system in globals.css branches on :lang(bn) for
+  // line-height/tracking/font-stretch. This read makes every route under
+  // this layout request-bound instead of static; see PROGRESS.md for why
+  // that trade-off is expected here, not a regression.
+  const locale = await getLocale();
+
   return (
     <html
-      lang="en"
+      lang={locale}
       className={`${anekBangla.variable} ${plexSans.variable} ${notoBengali.variable} ${plexMono.variable} h-full`}
     >
       <body className="flex min-h-full flex-col bg-paper text-ink">
-        <SiteHeader />
+        <SiteHeader locale={locale} />
         {children}
       </body>
     </html>

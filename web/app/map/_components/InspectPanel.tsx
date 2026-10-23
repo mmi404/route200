@@ -1,17 +1,22 @@
 import { useEffect, useRef } from "react";
 import {
   ButtonLink,
+  formatStatNumber,
   SeverityBadge,
   SourceCitation,
   StatCallout,
 } from "@/app/components";
 import type { ZoneFeature } from "@/lib/types";
 import { ZONE_KIND_LABEL } from "@/lib/design-tokens";
+import { format, t, zoneDisplayName } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
 import type { ZoneStatus } from "../_lib/severity";
 import { StripChart } from "./StripChart";
 import type { ChangeEvent } from "@/lib/types";
 
 type InspectPanelProps = {
+  locale: Locale;
   zone: ZoneFeature;
   /** Severity within the currently selected date window. */
   status: ZoneStatus;
@@ -32,6 +37,7 @@ type InspectPanelProps = {
 };
 
 export function InspectPanel({
+  locale,
   zone,
   status,
   history,
@@ -39,6 +45,7 @@ export function InspectPanel({
   onBack,
   className = "",
 }: InspectPanelProps) {
+  const copy = translations.mapPage;
   const { properties } = zone;
   const latest = status.event ?? history[history.length - 1];
   const backButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -55,24 +62,25 @@ export function InspectPanel({
         onClick={onBack}
         className="type-small self-start text-ink-muted hover:text-river"
       >
-        ← All zones
+        {t(copy.backToAllZones, locale)}
       </button>
 
       <div className="flex flex-col gap-2">
-        <h2 className="type-h2">{properties.name}</h2>
+        <h2 className="type-h2">{zoneDisplayName(properties, locale)}</h2>
         <p className="type-meta text-ink-subtle">
           {properties.upazila}, {properties.district} ·{" "}
-          {ZONE_KIND_LABEL.en[properties.kind]}
+          {ZONE_KIND_LABEL[locale][properties.kind]}
         </p>
         {status.event ? (
           <SeverityBadge
             score={status.event.severity}
             variant="solid"
             showScore
+            lang={locale}
           />
         ) : (
           <span className="type-meta inline-flex h-6 items-center gap-2 rounded-xs bg-nodata px-2 font-medium text-ink">
-            No data in this window
+            {t(copy.noDataInWindow, locale)}
           </span>
         )}
       </div>
@@ -83,21 +91,20 @@ export function InspectPanel({
           value={status.event.areaSqKm}
           decimals={2}
           suffix=" km²"
-          label="Area changed in this window"
+          locale={locale}
+          label={t(copy.areaChangedLabel, locale)}
           countUp={false}
         />
       ) : (
-        <p className="type-small text-ink-subtle">
-          No change event from this zone falls in the selected date window.
-          Widen the window to see its recorded history.
-        </p>
+        <p className="type-small text-ink-subtle">{t(copy.noEventInWindow, locale)}</p>
       )}
 
-      <StripChart events={history} />
+      <StripChart locale={locale} events={history} />
 
       <p className="type-small text-ink-muted">
-        {properties.registeredAlertCount.toLocaleString("en-US")} registered
-        for alerts in this zone.
+        {format(t(copy.registeredAlertCount, locale), {
+          count: formatStatNumber(properties.registeredAlertCount, { locale }),
+        })}
       </p>
 
       {latest && (
@@ -105,12 +112,13 @@ export function InspectPanel({
           source={latest.sourceScene}
           date={latest.dateRangeStart}
           dateEnd={latest.dateRangeEnd}
-          note="Decision support, not a forecast."
+          note={t(copy.decisionSupportNote, locale)}
+          lang={locale}
         />
       )}
 
       <ButtonLink href={`/alerts?zone=${properties.id}`} size="md">
-        Get alerts for this zone
+        {t(copy.getAlertsForThisZone, locale)}
       </ButtonLink>
     </div>
   );

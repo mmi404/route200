@@ -10,7 +10,14 @@ import {
 import { useMapData } from "@/app/map/_lib/useMapData";
 import { dateRangeOfEvents, zoneStatus } from "@/app/map/_lib/severity";
 import { MAP_STYLE, prefersReducedMotion } from "@/lib/design-tokens";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
 import { MapCanvas, type CameraTarget, type StyledZoneFeatureCollection } from "@/app/map/_components/MapCanvas";
+
+type MapTeaserProps = {
+  locale: Locale;
+};
 
 const JAMUNA_CAMERA: CameraTarget = {
   kind: "point",
@@ -33,9 +40,14 @@ const STEP_CAMERAS: CameraTarget[] = [JAMUNA_CAMERA, HILL_CAMERA, HILL_CAMERA];
  * panel with the severity scale and the handoff CTA. Clicking through
  * opens /map at the camera this teaser ended on, so the transition reads
  * as continuous rather than a fresh load (DESIGN_SPEC.md: "/map?view=hill-tracts").
+ *
+ * `locale` is resolved once in app/page.tsx (a server component) and
+ * passed down, since this is a Client Component (MapLibre needs the
+ * browser) and must not call cookies() itself.
  */
-export function MapTeaser() {
-  const { zones, events } = useMapData();
+export function MapTeaser({ locale }: MapTeaserProps) {
+  const { zones, events } = useMapData(locale);
+  const copy = translations.mapTeaser;
   const [activeStep, setActiveStep] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(() => prefersReducedMotion());
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -112,16 +124,9 @@ export function MapTeaser() {
         >
           <div className="bg-surface max-w-[22rem] p-6 sm:max-w-[26rem] sm:p-8">
             <SectionLabel index={3} className="mb-4">
-              The map
+              {t(copy.sectionLabel, locale)}
             </SectionLabel>
-            <p className="type-body text-ink-muted">
-              Open the map and the Jamuna isn&apos;t a static blue line.
-              It&apos;s a river caught mid-motion, bank lines from different
-              years laid over each other so you can watch, in minutes,
-              erosion that actually unfolded over seasons. In the Chattogram
-              Hill Tracts, slopes are shaded by how much ground has shifted,
-              the kind of movement that preceded the 2026 monsoon landslides.
-            </p>
+            <p className="type-body text-ink-muted">{t(copy.step1, locale)}</p>
           </div>
         </div>
 
@@ -133,11 +138,7 @@ export function MapTeaser() {
           className="flex min-h-[100svh] items-end px-gutter pb-10 sm:min-h-[calc(100dvh-var(--spacing-header))] sm:items-center sm:pb-0"
         >
           <div className="bg-surface max-w-[22rem] p-6 sm:max-w-[26rem] sm:p-8">
-            <p className="type-body text-ink-muted">
-              If your village sits on a Jamuna char, or your family&apos;s
-              land is on a Chattogram hillside, this map is the closest thing
-              to watching your own risk from orbit, in your own language.
-            </p>
+            <p className="type-body text-ink-muted">{t(copy.step2, locale)}</p>
           </div>
         </div>
 
@@ -149,12 +150,20 @@ export function MapTeaser() {
           className="flex min-h-[100svh] items-end px-gutter pb-10 sm:min-h-[calc(100dvh-var(--spacing-header))] sm:items-center sm:pb-0"
         >
           <div className="bg-surface flex max-w-[22rem] flex-col gap-6 p-6 sm:max-w-[26rem] sm:p-8">
-            <SeverityScale title="Change severity, engine score 0–100" markAlertThreshold />
+            <SeverityScale
+              title={t(copy.severityScaleTitle, locale)}
+              markAlertThreshold
+              lang={locale}
+            />
             <ButtonLink href="/map?view=hill-tracts" size="lg">
-              See the risk map
+              {t(copy.cta, locale)}
             </ButtonLink>
             {latestEvent && (
-              <SourceCitation source={latestEvent.sourceScene} date={latestEvent.dateRangeEnd} />
+              <SourceCitation
+                source={latestEvent.sourceScene}
+                date={latestEvent.dateRangeEnd}
+                lang={locale}
+              />
             )}
           </div>
         </div>

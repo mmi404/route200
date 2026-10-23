@@ -1,37 +1,32 @@
 import { SectionLabel, StatCallout } from "@/app/components";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
+
+type ProblemSectionProps = {
+  locale: Locale;
+};
 
 /**
- * "The problem" (DESIGN_SPEC.md 7a#2). Copy is verbatim from
- * .design-research/landing-copy.md section 2, split across the three
- * source paragraphs with the three stat figures inserted between
- * paragraphs two and three, then the closing sentence repeated as a
- * pulled quote, newspaper style.
+ * "The problem" (DESIGN_SPEC.md 7a#2). Copy comes from translations.ts's
+ * `problem` group, split across the three source paragraphs with the
+ * three stat figures inserted between paragraphs two and three, then the
+ * closing sentence repeated as a pulled quote, newspaper style.
  */
-export function ProblemSection() {
+export function ProblemSection({ locale }: ProblemSectionProps) {
+  const copy = translations.problem;
+
   return (
     <section className="frame flex flex-col py-section">
       <div className="grid grid-cols-4 gap-x-gutter sm:grid-cols-12">
         <div className="reveal col-span-4 flex flex-col gap-4 sm:col-span-8 sm:col-start-2">
-          <SectionLabel index={1}>The problem</SectionLabel>
-          <h2 className="type-h2 max-w-column">
-            The science exists, and it already works.
-          </h2>
+          <SectionLabel index={1}>{t(copy.sectionLabel, locale)}</SectionLabel>
+          <h2 className="type-h2 max-w-column">{t(copy.heading, locale)}</h2>
         </div>
 
         <div className="col-span-4 mt-8 flex flex-col gap-5 sm:col-span-8 sm:col-start-2">
-          <p className="type-body max-w-column text-ink-muted">
-            NASA and ISRO&apos;s NISAR mission watches Bangladesh&apos;s rivers and
-            hillsides from space. Bangladesh&apos;s own CEGIS has tracked the
-            Jamuna&apos;s erosion every year since 2004. None of this is
-            hypothetical. The science exists, and it already works.
-          </p>
-          <p className="type-body max-w-column text-ink-muted">
-            What doesn&apos;t exist is the route from that data to the person
-            standing on the riverbank when it gives way. A UNICEF-Gallup survey
-            from December 2023 found only 37% of Bangladeshi youth could
-            correctly identify the definition of climate change, in one of the
-            most climate-exposed countries on earth.
-          </p>
+          <p className="type-body max-w-column text-ink-muted">{t(copy.paragraph1, locale)}</p>
+          <p className="type-body max-w-column text-ink-muted">{t(copy.paragraph2, locale)}</p>
         </div>
 
         <div className="reveal col-span-4 mt-10 sm:col-span-12 sm:col-start-1">
@@ -40,39 +35,34 @@ export function ProblemSection() {
               value={2004}
               grouping={false}
               countUp={false}
-              label="The year CEGIS began tracking Jamuna erosion every year"
-              source="CEGIS"
+              locale={locale}
+              label={t(copy.statCegisYearLabel, locale)}
+              source={t(copy.statCegisSource, locale)}
             />
             <StatCallout
               value={37}
               suffix="%"
-              label="of Bangladeshi youth could correctly define climate change"
-              source="UNICEF-Gallup, Dec 2023"
+              locale={locale}
+              label={t(copy.statYouthLabel, locale)}
+              source={t(copy.statYouthSource, locale)}
             />
             <StatCallout
               value={50}
               suffix="+"
               accent="severe"
-              label="deaths in the July 2026 Chattogram Hill Tracts landslides"
-              source="News reporting, Jul 2026"
+              locale={locale}
+              label={t(copy.statDeathsLabel, locale)}
+              source={t(copy.statDeathsSource, locale)}
             />
           </div>
         </div>
 
         <div className="col-span-4 mt-10 flex flex-col gap-5 sm:col-span-8 sm:col-start-2">
-          <p className="type-body max-w-column text-ink-muted">
-            The July 2026 monsoon landslides across the Chattogram Hill Tracts
-            killed more than fifty people. The data wasn&apos;t the surprise.
-            The silence around it was. That gap, between what satellites
-            already see and who gets told, is what Route200 closes.
-          </p>
+          <p className="type-body max-w-column text-ink-muted">{t(copy.paragraph3, locale)}</p>
         </div>
 
         <div className="reveal col-span-4 mt-10 border-t-2 border-ink pt-6 sm:col-span-10 sm:col-start-2">
-          <p className="type-h2 max-w-wide">
-            That gap, between what satellites already see and who gets told,
-            is what Route200 closes.
-          </p>
+          <p className="type-h2 max-w-wide">{t(copy.pullQuote, locale)}</p>
         </div>
       </div>
     </section>

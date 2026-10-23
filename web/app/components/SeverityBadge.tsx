@@ -41,6 +41,13 @@ const SOLID: Record<SeverityBand, string> = {
   severe: "bg-sev-severe text-paper",
 };
 
+// Screen-reader-only prefix, inline bilingual via the `lang` prop like this
+// component's own SEVERITY_SHORT_LABEL, not duplicated in translations.ts.
+const SR_PREFIX: Record<"en" | "bn", string> = {
+  en: "Severity: ",
+  bn: "তীব্রতা: ",
+};
+
 /**
  * Severity band marker. Takes either the engine's raw 0-100 `score` (the
  * band is derived with severityToBand, never guessed) or a known `band`.
@@ -67,7 +74,7 @@ export function SeverityBadge({
         title={title}
         className={`type-meta inline-flex h-6 items-center gap-2 rounded-xs px-2 font-medium ${SOLID[band]} ${className}`}
       >
-        <span className="sr-only">Severity: </span>
+        <span className="sr-only">{SR_PREFIX[lang]}</span>
         <span className="uppercase tracking-[0.06em] [&:lang(bn)]:tracking-normal">{word}</span>
         {scoreText && <span className="tabular-nums opacity-80">{scoreText}</span>}
       </span>
@@ -83,7 +90,7 @@ export function SeverityBadge({
         aria-hidden="true"
         className={`size-2.5 shrink-0 ring-1 ring-ink/25 ring-inset ${SWATCH[band]}`}
       />
-      <span className="sr-only">Severity: </span>
+      <span className="sr-only">{SR_PREFIX[lang]}</span>
       <span className={INK[band]}>{word}</span>
       {scoreText && (
         <span className="tabular-nums font-normal text-ink-subtle">

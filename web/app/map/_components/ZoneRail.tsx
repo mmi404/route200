@@ -1,4 +1,7 @@
 import { formatCitationDate } from "@/app/components";
+import { format, t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
 import type { ChangeEvent, ZoneFeature } from "@/lib/types";
 import type {
   DateWindow,
@@ -12,6 +15,7 @@ import { ZoneListPanel } from "./ZoneListPanel";
 type SeverityCounts = Partial<Record<"low" | "moderate" | "high" | "severe", number>>;
 
 type ZoneRailProps = {
+  locale: Locale;
   freshness: string | null;
   kindFilter: KindFilter;
   onKindFilterChangeAction: (value: KindFilter) => void;
@@ -41,6 +45,7 @@ type ZoneRailProps = {
  * rail chrome (DESIGN_SPEC.md 7b), with a back control rather than a popup.
  */
 export function ZoneRail({
+  locale,
   freshness,
   kindFilter,
   onKindFilterChangeAction,
@@ -65,6 +70,7 @@ export function ZoneRail({
     >
       {selectedZone && selectedStatus ? (
         <InspectPanel
+          locale={locale}
           zone={selectedZone}
           status={selectedStatus}
           history={selectedHistory}
@@ -74,14 +80,17 @@ export function ZoneRail({
       ) : (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-1">
-            <h1 className="type-h1">Risk map</h1>
+            <h1 className="type-h1">{t(translations.mapPage.heading, locale)}</h1>
             {freshness && (
               <p className="type-meta text-ink-subtle">
-                Latest pass {formatCitationDate(freshness)}
+                {format(t(translations.mapPage.latestPass, locale), {
+                  date: formatCitationDate(freshness),
+                })}
               </p>
             )}
           </div>
           <ZoneListPanel
+            locale={locale}
             kindFilter={kindFilter}
             onKindFilterChangeAction={onKindFilterChangeAction}
             dataRange={dataRange}

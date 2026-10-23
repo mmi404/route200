@@ -4,13 +4,44 @@ import { useMemo } from "react";
 import {
   ButtonLink,
   formatCitationDate,
+  formatStatNumber,
   SectionLabel,
   SeverityBadge,
   SourceCitation,
 } from "@/app/components";
 import { useMapData } from "@/app/map/_lib/useMapData";
 import { dateRangeOfEvents, zoneStatus } from "@/app/map/_lib/severity";
+import { format, t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
 import type { ZoneFeature } from "@/lib/types";
+
+type HeroProps = {
+  locale: Locale;
+};
+
+/**
+ * Splits a headline string around its literal "404" and "200" tokens so
+ * they can carry their own styling (struck-through mono / ok-accent)
+ * regardless of locale. Both tokens are kept as Latin digits in both
+ * languages (translations.ts: literal brand/code tokens, not translated
+ * prose), so this split works the same way on either string.
+ */
+function renderHeadline(text: string) {
+  const [before404, after404] = text.split("404");
+  const [between, after200] = after404.split("200");
+  return (
+    <>
+      {before404}
+      <span className="font-mono text-ink-subtle decoration-2 line-through">
+        404
+      </span>
+      {between}
+      <span className="text-ok">200</span>
+      {after200}
+    </>
+  );
+}
 
 /**
  * Hero (DESIGN_SPEC.md 7a#1). Columns 9-12 replace an illustration with a
@@ -18,9 +49,14 @@ import type { ZoneFeature } from "@/lib/types";
  * /api/change-events, through the same zoneStatus()/dateRangeOfEvents()
  * helpers app/map/_lib/severity.ts already defines, so this can never
  * disagree with what /map itself shows for "current" severity.
+ *
+ * `locale` is resolved once in app/page.tsx (a server component) and
+ * passed down, since this is a Client Component (it fetches its own data)
+ * and must not call cookies() itself.
  */
-export function Hero() {
-  const { zones, events, loading, error } = useMapData();
+export function Hero({ locale }: HeroProps) {
+  const { zones, events, loading, error } = useMapData(locale);
+  const copy = translations.hero;
 
   const dateWindow = useMemo(
     () => (events.length ? dateRangeOfEvents(events) : null),
@@ -61,61 +97,72 @@ export function Hero() {
 
   const totalZones = zones?.features.length ?? 0;
 
+  const zonesLabel = loading
+    ? t(copy.sectionLabelLoading, locale)
+    : error
+      ? t(copy.sectionLabelError, locale)
+      : format(t(copy.sectionLabelTracking, locale), {
+          count: formatStatNumber(totalZones, { grouping: false, locale }),
+        });
+
+  const mobileSummary =
+    format(t(copy.mobileSummaryZonesTracked, locale), {
+      count: formatStatNumber(totalZones, { grouping: false, locale }),
+    }) +
+    (severeCount
+      ? format(t(copy.mobileSummarySevereSuffix, locale), {
+          count: formatStatNumber(severeCount, { grouping: false, locale }),
+        })
+      : "");
+
   return (
     <section className="frame flex flex-col pt-12 sm:pt-section-tight">
       <div className="grid grid-cols-4 gap-x-gutter gap-y-10 sm:grid-cols-12">
         <div className="col-span-4 flex flex-col gap-6 sm:col-span-8">
-          <h1 className="type-display">
-            From{" "}
-            <span className="font-mono text-ink-subtle decoration-2 line-through">
-              404
-            </span>{" "}
-            to <span className="text-ok">200</span>: Bangladesh&apos;s climate data
-            finally has a route to you.
-          </h1>
-          <p className="type-lede max-w-column text-ink-muted">
-            Route200 turns satellite radar data into a warning that reaches your
-            phone, not just a server.
-          </p>
+          <h1 className="type-display">{renderHeadline(t(copy.headline, locale))}</h1>
+          <p className="type-lede max-w-column text-ink-muted">{t(copy.subhead, locale)}</p>
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
             <ButtonLink href="/map" size="lg">
-              See the risk map
+              {t(copy.ctaPrimary, locale)}
             </ButtonLink>
             <ButtonLink href="#alerts" variant="secondary" size="lg">
-              Get alerts for your area
+              {t(copy.ctaSecondary, locale)}
             </ButtonLink>
           </div>
         </div>
 
         <div className="col-span-4 flex flex-col gap-5 sm:col-span-4 sm:col-start-9">
-          <SectionLabel>
-            {loading
-              ? "Loading zone data"
-              : error
-                ? "Zone data unavailable"
-                : `Tracking ${totalZones} zones`}
-          </SectionLabel>
+          <SectionLabel>{zonesLabel}</SectionLabel>
 
           {grouped && (
             <>
               <div className="hidden flex-col gap-5 sm:flex">
-                <ZoneGroup title="Jamuna corridor" zones={grouped.erosion} statusByZoneId={statusByZoneId} />
                 <ZoneGroup
-                  title="Chattogram Hill Tracts"
+                  title={t(copy.zoneGroupJamuna, locale)}
+                  zones={grouped.erosion}
+                  statusByZoneId={statusByZoneId}
+                  locale={locale}
+                  noDataLabel={t(copy.noData, locale)}
+                />
+                <ZoneGroup
+                  title={t(copy.zoneGroupHillTracts, locale)}
                   zones={grouped.landslide}
                   statusByZoneId={statusByZoneId}
+                  locale={locale}
+                  noDataLabel={t(copy.noData, locale)}
                 />
               </div>
-              <p className="type-small text-ink-muted sm:hidden">
-                {totalZones} zones tracked
-                {severeCount ? ` · ${severeCount} severe` : ""}
-              </p>
+              <p className="type-small text-ink-muted sm:hidden">{mobileSummary}</p>
             </>
           )}
 
           {latestEvent && (
             <div className="hidden sm:block">
-              <SourceCitation source={latestEvent.sourceScene} date={latestEvent.dateRangeEnd} />
+              <SourceCitation
+                source={latestEvent.sourceScene}
+                date={latestEvent.dateRangeEnd}
+                lang={locale}
+              />
             </div>
           )}
         </div>
@@ -123,9 +170,13 @@ export function Hero() {
 
       <div className="mt-12 border-t border-ink pt-3 sm:mt-16">
         <p className="type-meta text-ink-subtle">
-          Jamuna corridor 24.4–25.3°N <span aria-hidden="true">·</span> Chattogram
-          Hill Tracts 21.5–22.2°N <span aria-hidden="true">·</span> Latest pass{" "}
-          {latestEvent ? formatCitationDate(latestEvent.dateRangeEnd) : "loading"}
+          {t(copy.datelineJamuna, locale)} <span aria-hidden="true">·</span>{" "}
+          {t(copy.datelineHillTracts, locale)} <span aria-hidden="true">·</span>{" "}
+          {format(t(copy.datelineLatestPass, locale), {
+            date: latestEvent
+              ? formatCitationDate(latestEvent.dateRangeEnd)
+              : t(copy.datelineLoading, locale),
+          })}
         </p>
       </div>
     </section>
@@ -136,10 +187,14 @@ function ZoneGroup({
   title,
   zones,
   statusByZoneId,
+  locale,
+  noDataLabel,
 }: {
   title: string;
   zones: ZoneFeature[];
   statusByZoneId: Map<string, ReturnType<typeof zoneStatus>>;
+  locale: Locale;
+  noDataLabel: string;
 }) {
   return (
     <div>
@@ -154,9 +209,9 @@ function ZoneGroup({
             >
               <span className="type-small text-ink-muted">{zone.properties.upazila}</span>
               {status && status.band !== "nodata" ? (
-                <SeverityBadge band={status.band} />
+                <SeverityBadge band={status.band} lang={locale} />
               ) : (
-                <span className="type-meta text-ink-subtle">No data</span>
+                <span className="type-meta text-ink-subtle">{noDataLabel}</span>
               )}
             </li>
           );

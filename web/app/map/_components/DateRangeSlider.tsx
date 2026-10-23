@@ -1,10 +1,14 @@
 "use client";
 
 import { formatCitationDate } from "@/app/components";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
 import { dayIndexToIso, isoToDayIndex, type DateWindow } from "../_lib/severity";
 import styles from "./date-range-slider.module.css";
 
 type DateRangeSliderProps = {
+  locale: Locale;
   /** The full span available to drag within (the real event date range). */
   bounds: DateWindow;
   value: DateWindow;
@@ -20,11 +24,13 @@ type DateRangeSliderProps = {
  * slider without a dependency.
  */
 export function DateRangeSlider({
+  locale,
   bounds,
   value,
   onChangeAction,
   className = "",
 }: DateRangeSliderProps) {
+  const copy = translations.mapPage;
   const minDay = isoToDayIndex(bounds.low);
   const maxDay = isoToDayIndex(bounds.high);
   const lowDay = isoToDayIndex(value.low);
@@ -35,7 +41,7 @@ export function DateRangeSlider({
 
   return (
     <div className={className}>
-      <p className="type-eyebrow mb-3 text-ink-muted">Date window</p>
+      <p className="type-eyebrow mb-3 text-ink-muted">{t(copy.dateWindowLabel, locale)}</p>
       <div className="relative h-5">
         <div
           aria-hidden="true"
@@ -49,7 +55,7 @@ export function DateRangeSlider({
         <input
           type="range"
           className={styles.rangeInput}
-          aria-label="Window start date"
+          aria-label={t(copy.dateWindowStartAriaLabel, locale)}
           min={minDay}
           max={maxDay}
           value={lowDay}
@@ -61,7 +67,7 @@ export function DateRangeSlider({
         <input
           type="range"
           className={styles.rangeInput}
-          aria-label="Window end date"
+          aria-label={t(copy.dateWindowEndAriaLabel, locale)}
           min={minDay}
           max={maxDay}
           value={highDay}

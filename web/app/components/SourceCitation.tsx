@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { t } from "@/lib/i18n";
+import { translations } from "@/lib/translations";
 
 const MONTHS = [
   "Jan",
@@ -43,8 +45,10 @@ type SourceCitationProps = {
    * forecasts; say so where a figure could be read as a prediction.
    */
   note?: ReactNode;
-  /** Leading label. Defaults to "Source". */
+  /** Leading label. Defaults to the "Source" translation for `lang`. */
   label?: string;
+  /** Resolved UI locale, for the default label. Defaults to "en". */
+  lang?: "en" | "bn";
   as?: "p" | "div" | "figcaption";
   tone?: "default" | "inverse";
   className?: string;
@@ -62,11 +66,13 @@ export function SourceCitation({
   date,
   dateEnd,
   note,
-  label = "Source",
+  label,
+  lang = "en",
   as: Tag = "p",
   tone = "default",
   className = "",
 }: SourceCitationProps) {
+  const resolvedLabel = label ?? t(translations.common.source, lang);
   const inverse = tone === "inverse";
   const dateText = date
     ? dateEnd
@@ -88,7 +94,7 @@ export function SourceCitation({
             inverse ? "text-paper" : "text-ink-muted"
           }`}
         >
-          {label}
+          {resolvedLabel}
         </span>
         {href ? (
           <a

@@ -6,6 +6,9 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from "react";
 import type { ChangeEvent, ZoneFeature } from "@/lib/types";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
 import type {
   DateWindow,
   KindFilter,
@@ -22,6 +25,7 @@ const PEEK_HEIGHT = 88;
 type SeverityCounts = Partial<Record<"low" | "moderate" | "high" | "severe", number>>;
 
 type MobileSheetProps = {
+  locale: Locale;
   snap: SheetSnap;
   onSnapChangeAction: (snap: SheetSnap) => void;
   summary: string;
@@ -71,6 +75,7 @@ function nearestSnap(heightPx: number, viewportHeight: number): SheetSnap {
  * anyone who can't drag.
  */
 export function MobileSheet({
+  locale,
   snap,
   onSnapChangeAction,
   summary,
@@ -182,7 +187,7 @@ export function MobileSheet({
         className="flex shrink-0 cursor-grab items-center justify-center border-b border-rule py-4 touch-none active:cursor-grabbing focus-visible:outline-offset-[-2px]"
         role="button"
         tabIndex={0}
-        aria-label="Resize the zone panel"
+        aria-label={t(translations.mapPage.resizeZonePanel, locale)}
       >
         <span aria-hidden="true" className="h-1 w-10 rounded-full bg-rule" />
       </div>
@@ -195,6 +200,7 @@ export function MobileSheet({
         <div className="flex-1 overflow-y-auto px-gutter py-4">
           {selectedZone && selectedStatus ? (
             <InspectPanel
+              locale={locale}
               zone={selectedZone}
               status={selectedStatus}
               history={selectedHistory}
@@ -203,6 +209,7 @@ export function MobileSheet({
             />
           ) : (
             <ZoneListPanel
+              locale={locale}
               kindFilter={kindFilter}
               onKindFilterChangeAction={onKindFilterChangeAction}
               dataRange={dataRange}

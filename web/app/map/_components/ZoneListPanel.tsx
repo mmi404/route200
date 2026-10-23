@@ -1,5 +1,8 @@
-import { SeverityBadge, SeverityScale } from "@/app/components";
+import { formatStatNumber, SeverityBadge, SeverityScale } from "@/app/components";
 import { ZONE_KIND_LABEL } from "@/lib/design-tokens";
+import { t, zoneDisplayName } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
 import type {
   DateWindow,
   KindFilter,
@@ -7,15 +10,10 @@ import type {
 } from "../_lib/severity";
 import { DateRangeSlider } from "./DateRangeSlider";
 
-const KIND_OPTIONS: { value: KindFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "erosion", label: ZONE_KIND_LABEL.en.erosion },
-  { value: "landslide", label: ZONE_KIND_LABEL.en.landslide },
-];
-
 type SeverityCounts = Partial<Record<"low" | "moderate" | "high" | "severe", number>>;
 
 type ZoneListPanelProps = {
+  locale: Locale;
   kindFilter: KindFilter;
   onKindFilterChangeAction: (value: KindFilter) => void;
   dataRange: DateWindow;
@@ -40,6 +38,7 @@ type ZoneListPanelProps = {
  * uses the same sheet"): one implementation of the list, two containers.
  */
 export function ZoneListPanel({
+  locale,
   kindFilter,
   onKindFilterChangeAction,
   dataRange,
@@ -52,6 +51,13 @@ export function ZoneListPanel({
   onSelectZoneAction,
   className = "",
 }: ZoneListPanelProps) {
+  const kindLabels = ZONE_KIND_LABEL[locale];
+  const kindOptions: { value: KindFilter; label: string }[] = [
+    { value: "all", label: t(translations.mapPage.kindFilterAll, locale) },
+    { value: "erosion", label: kindLabels.erosion },
+    { value: "landslide", label: kindLabels.landslide },
+  ];
+
   return (
     <div className={`flex flex-col gap-6 ${className}`}>
       {/* overflow-hidden clips each button's own focus-visible outline,
@@ -63,9 +69,9 @@ export function ZoneListPanel({
       <div
         className="grid grid-cols-3 overflow-hidden rounded-xs border border-rule"
         role="group"
-        aria-label="Filter zones by kind"
+        aria-label={t(translations.mapPage.kindFilterGroupAriaLabel, locale)}
       >
-        {KIND_OPTIONS.map((option) => (
+        {kindOptions.map((option) => (
           <button
             key={option.value}
             type="button"
@@ -83,16 +89,23 @@ export function ZoneListPanel({
       </div>
 
       <DateRangeSlider
+        locale={locale}
         bounds={dataRange}
         value={dateWindow}
         onChangeAction={onDateWindowChangeAction}
       />
 
-      <SeverityScale orientation="vertical" title="Zones" counts={counts} />
+      <SeverityScale
+        orientation="vertical"
+        title={t(translations.mapPage.severityScaleZonesTitle, locale)}
+        counts={counts}
+        lang={locale}
+      />
 
       <ul className="flex flex-col border-t border-rule">
         {entries.map(({ feature, status }) => {
-          const { id, name, upazila, district, kind } = feature.properties;
+          const { id, district, kind } = feature.properties;
+          const name = zoneDisplayName(feature.properties, locale);
           return (
             <li key={id} className="border-b border-rule">
               <button
@@ -112,15 +125,17 @@ export function ZoneListPanel({
                         aria-hidden="true"
                         className="size-2.5 shrink-0 bg-nodata ring-1 ring-ink/25 ring-inset"
                       />
-                      No data
+                      {t(translations.common.noData, locale)}
                     </span>
                   ) : (
-                    <SeverityBadge score={status.event?.severity ?? 0} showScore />
+                    <SeverityBadge score={status.event?.severity ?? 0} showScore lang={locale} />
                   )}
                 </span>
                 <span className="type-meta text-ink-subtle">
-                  {upazila}, {district} · {ZONE_KIND_LABEL.en[kind]}
-                  {status.event ? ` · ${status.event.areaSqKm.toFixed(2)} km²` : ""}
+                  {feature.properties.upazila}, {district} · {kindLabels[kind]}
+                  {status.event
+                    ? ` · ${formatStatNumber(status.event.areaSqKm, { decimals: 2, grouping: false, locale })} km²`
+                    : ""}
                 </span>
               </button>
             </li>

@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ZoneFeature } from "@/lib/types";
 import { MAP_STYLE, prefersReducedMotion } from "@/lib/design-tokens";
+import { format, t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { translations } from "@/lib/translations";
+import { formatStatNumber } from "@/app/components";
 import { useMapData } from "../_lib/useMapData";
 import {
   BAND_RANK,
@@ -37,10 +41,11 @@ const VIEW_PARAMS: Record<string, { center: [number, number]; zoom: number }> = 
 type MapExperienceProps = {
   initialView?: string;
   initialZoneId?: string;
+  locale: Locale;
 };
 
-export function MapExperience({ initialView, initialZoneId }: MapExperienceProps) {
-  const { zones, events, loading, error } = useMapData();
+export function MapExperience({ initialView, initialZoneId, locale }: MapExperienceProps) {
+  const { zones, events, loading, error } = useMapData(locale);
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(
     initialZoneId ?? null,
@@ -156,11 +161,16 @@ export function MapExperience({ initialView, initialZoneId }: MapExperienceProps
 
   const summary = useMemo(() => {
     const severeCount = counts.severe ?? 0;
-    const zoneWord = sortedEntries.length === 1 ? "zone" : "zones";
-    return `${sortedEntries.length} ${zoneWord} tracked${
-      severeCount ? ` · ${severeCount} severe` : ""
-    }`;
-  }, [sortedEntries.length, counts.severe]);
+    const base = format(t(translations.mapPage.summaryZonesTracked, locale), {
+      count: formatStatNumber(sortedEntries.length, { grouping: false, locale }),
+    });
+    const suffix = severeCount
+      ? format(t(translations.mapPage.summarySevereSuffix, locale), {
+          count: formatStatNumber(severeCount, { grouping: false, locale }),
+        })
+      : "";
+    return base + suffix;
+  }, [sortedEntries.length, counts.severe, locale]);
 
   const selectedZone = selectedZoneId ? zonesById.get(selectedZoneId) ?? null : null;
   const selectedStatus = selectedZoneId
@@ -211,7 +221,7 @@ export function MapExperience({ initialView, initialZoneId }: MapExperienceProps
   if (error) {
     return (
       <div className="flex h-[calc(100dvh-var(--spacing-header))] flex-col items-center justify-center gap-2 bg-paper px-gutter text-center">
-        <p className="type-small text-ink">Could not load zone data.</p>
+        <p className="type-small text-ink">{t(translations.mapPage.errorHeading, locale)}</p>
         <p className="type-meta text-ink-subtle">{error}</p>
       </div>
     );
@@ -220,7 +230,7 @@ export function MapExperience({ initialView, initialZoneId }: MapExperienceProps
   if (loading || !zones || !dateWindow || !styledZones) {
     return (
       <div className="flex h-[calc(100dvh-var(--spacing-header))] items-center justify-center bg-paper">
-        <p className="type-small text-ink-subtle">Loading zone data…</p>
+        <p className="type-small text-ink-subtle">{t(translations.mapPage.loading, locale)}</p>
       </div>
     );
   }
@@ -230,6 +240,7 @@ export function MapExperience({ initialView, initialZoneId }: MapExperienceProps
       <div className="relative flex flex-1 overflow-hidden">
         <ZoneRail
           className="hidden lg:flex"
+          locale={locale}
           freshness={freshness}
           kindFilter={kindFilter}
           onKindFilterChangeAction={setKindFilter}
@@ -263,12 +274,14 @@ export function MapExperience({ initialView, initialZoneId }: MapExperienceProps
             reducedMotion={reducedMotion}
           />
           <FloatingControls
+            locale={locale}
             onZoomInAction={() => mapCanvasRef.current?.zoomIn()}
             onZoomOutAction={() => mapCanvasRef.current?.zoomOut()}
           />
         </div>
       </div>
       <MobileSheet
+        locale={locale}
         snap={sheetSnap}
         onSnapChangeAction={setSheetSnap}
         summary={summary}
