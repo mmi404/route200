@@ -20,6 +20,7 @@ Repo: `D:\race\nasaspace\route200` (git, origin `https://github.com/mmi404/route
 - [x] **M5 — Alert signup UI**: SMS/voice opt-in form (UI only, posts to mock API).
 - [x] **M6 — Polish & responsive**: QA pass, bug fixes, favicon/OG image, mobile verified (see session log). Animations already covered by M1's motion rules, no separate pass needed.
 - [x] **M7 — Build/test/deploy prep**: clean rebuild from scratch (deleted `.next`, reran tsc/eslint/build) verified, every module committed in reviewed, meaningful chunks, `docs/WEB_DATA_CONTRACT.md` extended to cover `/api/alerts`, README status line and `web/README.md` rewritten, pushed to `website` on origin.
+- [x] **M8 — Bangla localization**: full translation dictionary (`lib/translations.ts`), Bangla zone names (`nameBn`), and a real server-rendered locale toggle (cookie + server action), defaulting to Bangla per `docs/ARCHITECTURE.md`'s own "Bangla-first" framing. Added after M0-M7 once the English-only build was far enough along to reveal the toggle was still a static stub; independently verified (not just trusted) via raw server HTML.
 
 ## Decisions log (so a fresh session doesn't re-decide these)
 
