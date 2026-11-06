@@ -115,6 +115,26 @@ Request body:
 
 Currently this is a placeholder: the handler validates the shape, logs `zoneId`/`channels`/`language` server-side (the phone number is deliberately left out of the log), and returns `{ ok: true }`. There is no contacts table yet. Replacing the body of `web/app/api/alerts/route.ts` with a real write to the alert-delivery track's contacts table (ARCHITECTURE.md section 5, the table that `zones.registeredAlertCount` above is ultimately derived from) is the entire integration point here too, same pattern as `/api/zones` and `/api/change-events`. The response shape (`{ ok: true }`, or an error) and the request body shape should stay the same so the form doesn't need to change.
 
+## Surface history (3D explore)
+
+`/map/[zoneId]` (PROGRESS.md, "Phase 2: 3D terrain explore") drapes a
+severity color over a 3D terrain view of one zone, and lets a visitor
+scrub a slider across that zone's recorded history to watch the drape
+change. This does **not** need a new field. It is driven by the same
+`ChangeEvent[]` history described above: for a scrubbed date, the page
+finds the most recent event whose `dateRangeEnd` falls at or before that
+date and drapes its `severity` score, exactly the same "most recent event
+in range" logic `zoneStatus()` already uses for the 2D map (`lib/types.ts`,
+`app/map/_lib/severity.ts`). Before a zone's first recorded event, there is
+nothing to drape, rendered as the same no-data state the 2D map uses for
+the same reason (not observed, not "low").
+
+If the real engine ever starts emitting denser or more descriptive change
+records (e.g. a classified land-cover state per observation, not just a
+severity score), that would extend `ChangeEvent`, not replace it, and this
+page would pick it up the same way the 2D map would: through the one
+shared type in `lib/types.ts`.
+
 ## Swapping in the real engine
 
 Both route handlers (`web/app/api/zones/route.ts` and
