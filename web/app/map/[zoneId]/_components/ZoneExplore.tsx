@@ -117,7 +117,15 @@ export function ZoneExplore({ zoneId, locale }: ZoneExploreProps) {
         </p>
       </div>
 
-      <div className="absolute inset-x-4 bottom-4 z-10 flex flex-col gap-3 rounded-xs bg-surface/95 px-4 py-4 shadow-map sm:inset-x-4 sm:mx-auto sm:max-w-xl">
+      {/* bottom-10 on narrow viewports: unlike the 2D map's MobileSheet (a
+          full-bleed sheet that occludes MapLibre's own bottom-right
+          attribution control underneath it), this is a floating card with
+          side margins, so at inset-x-4/bottom-4 its bottom-right corner sat
+          right above the attribution line, crowding the two together on a
+          phone-width screen (QA, M12). sm:bottom-4 restores the original
+          spacing once the card is narrow enough (max-w-xl, centered) to
+          clear the attribution horizontally instead. */}
+      <div className="absolute inset-x-4 bottom-10 z-10 flex flex-col gap-3 rounded-xs bg-surface/95 px-4 py-4 shadow-map sm:bottom-4 sm:mx-auto sm:max-w-xl">
         <p className="type-small text-ink-muted">
           {format(t(translations.zoneExplore.flyoverCaption, locale), { name })}
         </p>
