@@ -50,6 +50,18 @@ const TERRAIN_EXAGGERATION = 1.3;
 /** Degrees of bearing drift per animation frame, roughly 3 deg/s at 60fps:
  *  slow enough to read as "looking around a place", not a spin. */
 const DRIFT_DEG_PER_SECOND = 3;
+/** Mobile/low-power fallback (QA, M12): below this width we assume a phone-
+ *  class device, where a continuously repainting pitched terrain scene is
+ *  the main battery/thermal cost of this page. Matches the breakpoint the
+ *  rest of the app already treats as "mobile" (ZoneRail/MobileSheet switch
+ *  at the same `sm:` 640px point). We still show real 3D relief there, just
+ *  a shallower pitch (fewer far-field DEM tiles in view, less overdraw) and
+ *  no idle drift (the map can sit still once loaded instead of repainting
+ *  every frame forever). A full 2D fallback was considered and rejected:
+ *  the terrain view is the point of this page, even on a phone. */
+const LOW_POWER_MAX_WIDTH = 640;
+const LOW_POWER_PITCH = 52;
+const LOW_POWER_EXAGGERATION = 1.0;
 
 function drapedFeature(zone: ZoneFeature, severity: number | undefined): DrapedZoneFeature {
   return { ...zone, properties: { ...zone.properties, severity } };
@@ -93,6 +105,11 @@ export function TerrainCanvas({ zone, severity, reducedMotion }: TerrainCanvasPr
   useEffect(() => {
     if (!containerRef.current) return;
     const { lat, lng } = zone.properties.center;
+    const isLowPower =
+      typeof window !== "undefined" &&
+      window.matchMedia(`(max-width: ${LOW_POWER_MAX_WIDTH}px)`).matches;
+    const pitch = isLowPower ? LOW_POWER_PITCH : 66;
+    const exaggeration = isLowPower ? LOW_POWER_EXAGGERATION : TERRAIN_EXAGGERATION;
 
     const map = new maplibregl.Map({
       container: containerRef.current,
@@ -100,7 +117,7 @@ export function TerrainCanvas({ zone, severity, reducedMotion }: TerrainCanvasPr
       attributionControl: { compact: true },
       center: [lng, lat],
       zoom: 13.2,
-      pitch: 66,
+      pitch,
       bearing: 0,
       maxPitch: 80,
     });
@@ -117,7 +134,7 @@ export function TerrainCanvas({ zone, severity, reducedMotion }: TerrainCanvasPr
     }
 
     function startDrift() {
-      if (reducedMotion || driftFrameRef.current !== null) return;
+      if (reducedMotion || isLowPower || driftFrameRef.current !== null) return;
       driftFrameRef.current = requestAnimationFrame(stepDrift);
     }
 
@@ -146,7 +163,7 @@ export function TerrainCanvas({ zone, severity, reducedMotion }: TerrainCanvasPr
         attribution: TERRAIN_ATTRIBUTION,
       } as SourceSpec);
 
-      map.setTerrain({ source: DEM_SOURCE_ID, exaggeration: TERRAIN_EXAGGERATION });
+      map.setTerrain({ source: DEM_SOURCE_ID, exaggeration });
 
       const firstNonBackgroundId = map
         .getStyle()
