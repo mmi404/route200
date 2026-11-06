@@ -52,11 +52,11 @@ export function GroundScene({ zoneId, severity, reducedMotion }: GroundSceneProp
   // a standing point facing the scar/house from the opposite side of
   // structureAngle, at roughly eye height above the (pre-clearing) ground.
   const initialCameraPosition = useMemo((): [number, number, number] => {
-    const standDistance = 13;
+    const standDistance = 11;
     const standAngle = layout.structureAngle + Math.PI;
     const x = layout.scarCenter.x + Math.cos(standAngle) * standDistance;
     const z = layout.scarCenter.z + Math.sin(standAngle) * standDistance;
-    const y = baseHeight(x, z, layout) + 1.75;
+    const y = baseHeight(x, z, layout) + 2.1;
     return [x, y, z];
   }, [layout]);
 
@@ -201,33 +201,44 @@ function RoadAndHouse({
   if (appear <= 0.01) return null;
 
   const scarY = terrainHeight(layout.scarCenter.x, layout.scarCenter.z, layout, severityFraction);
-  const angle = layout.structureAngle;
+  const facingAngle = layout.structureAngle;
+  // Angled off the house-facing direction (which the default camera looks
+  // straight down), so the road reads as a band crossing the view instead
+  // of a line receding edge-on into the distance.
+  const roadAngle = facingAngle + 0.55;
   const houseOffset = 2.4;
-  const houseX = layout.scarCenter.x + Math.cos(angle) * houseOffset;
-  const houseZ = layout.scarCenter.z + Math.sin(angle) * houseOffset;
+  const houseX = layout.scarCenter.x + Math.cos(facingAngle) * houseOffset;
+  const houseZ = layout.scarCenter.z + Math.sin(facingAngle) * houseOffset;
   const houseY = terrainHeight(houseX, houseZ, layout, severityFraction);
 
+  // Each piece's own anchor position lives on an unscaled group: scaling a
+  // group also scales its children's *local* position offsets, and that
+  // offset here is the real scarCenter/house world coordinate, not a small
+  // local nudge. Scaling that group previously dragged the road and house
+  // toward world origin (0,0,0) instead of shrinking them in place, which is
+  // why they were effectively never where the camera was looking. `appear`
+  // is applied only inside each anchor, where it scales the piece's own
+  // footprint/height around its own base, not its position.
   return (
-    <group scale={[appear, appear, appear]}>
-      <mesh
-        position={[layout.scarCenter.x, scarY + 0.03, layout.scarCenter.z]}
-        rotation={[-Math.PI / 2, 0, angle]}
-      >
-        <planeGeometry args={[2.2, 9]} />
-        <meshStandardMaterial color={PALETTE.ink} roughness={1} />
-      </mesh>
+    <>
+      <group position={[layout.scarCenter.x, scarY + 0.06, layout.scarCenter.z]} rotation={[0, roadAngle, 0]}>
+        <mesh scale={[appear, 1, appear]}>
+          <boxGeometry args={[3.4, 0.12, 9]} />
+          <meshStandardMaterial color={PALETTE.ink} roughness={0.9} />
+        </mesh>
+      </group>
 
-      <group position={[houseX, houseY, houseZ]} rotation={[0, -angle, 0]}>
-        <mesh position={[0, 0.65, 0]}>
-          <boxGeometry args={[2.1, 1.3, 1.7]} />
+      <group position={[houseX, houseY, houseZ]} rotation={[0, -facingAngle, 0]} scale={[appear, appear, appear]}>
+        <mesh position={[0, 0.72, 0]}>
+          <boxGeometry args={[2.4, 1.45, 1.9]} />
           <meshStandardMaterial color={PALETTE.paperMuted} roughness={0.9} />
         </mesh>
-        <mesh position={[0, 1.55, 0]} rotation={[0, Math.PI / 4, 0]}>
-          <coneGeometry args={[1.55, 0.9, 4]} />
+        <mesh position={[0, 1.72, 0]} rotation={[0, Math.PI / 4, 0]}>
+          <coneGeometry args={[1.75, 1, 4]} />
           <meshStandardMaterial color={PALETTE.ink} roughness={0.8} />
         </mesh>
       </group>
-    </group>
+    </>
   );
 }
 
@@ -244,7 +255,7 @@ function CameraRig({
   layout: SceneLayout;
   reducedMotion: boolean;
 }) {
-  const targetY = baseHeight(layout.scarCenter.x, layout.scarCenter.z, layout) * 0.3 + 1.1;
+  const targetY = baseHeight(layout.scarCenter.x, layout.scarCenter.z, layout) * 0.15 + 0.5;
   return (
     <OrbitControls
       target={[layout.scarCenter.x, targetY, layout.scarCenter.z]}
