@@ -111,7 +111,7 @@ function severityLineWidthExpression(): unknown[] {
  *  muted water, POI labels off (DESIGN_SPEC.md 7b). Matches by layer type
  *  and id pattern rather than hardcoded liberty layer ids, so it keeps
  *  working if the upstream style is revised. */
-function quietBasemap(map: MapInstance) {
+export function quietBasemap(map: MapInstance) {
   const layers = map.getStyle()?.layers ?? [];
   layers.forEach((layer) => {
     if (layer.type === "background") {

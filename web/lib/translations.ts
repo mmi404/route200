@@ -489,6 +489,10 @@ export const translations = {
       en: "Get alerts for this zone",
       bn: "এই এলাকার জন্য অ্যালার্ট নিন",
     },
+    exploreIn3d: {
+      en: "Explore in 3D",
+      bn: "৩ডি-তে দেখুন",
+    },
     // StripChart.tsx
     noEventsRecorded: {
       en: "No change events recorded yet for this zone.",
@@ -516,6 +520,53 @@ export const translations = {
     resizeZonePanel: {
       en: "Resize the zone panel",
       bn: "এলাকার প্যানেলের আকার পরিবর্তন করুন",
+    },
+  },
+
+  // ---------------------------------------------------------------------
+  // zoneExplore: app/map/[zoneId]/page.tsx and _components/*. The 3D
+  // terrain flythrough for a single zone, linked from mapPage's
+  // "Explore in 3D" CTA (that string lives in mapPage above, since
+  // InspectPanel.tsx owns it).
+  // ---------------------------------------------------------------------
+  zoneExplore: {
+    metaTitlePrefix: {
+      en: "Explore",
+      bn: "ঘুরে দেখুন",
+    },
+    backToMap: {
+      en: "← Back to map",
+      bn: "← মানচিত্রে ফিরুন",
+    },
+    notFoundHeading: {
+      en: "Zone not found.",
+      bn: "এলাকা খুঁজে পাওয়া যায়নি।",
+    },
+    loading: {
+      en: "Loading terrain…",
+      bn: "ভূখণ্ড লোড হচ্ছে…",
+    },
+    // {name} is the zone's display name, already locale-resolved.
+    flyoverCaption: {
+      en: "A low flyover of {name}, built from real elevation data and the same change detection that drives the risk map.",
+      bn: "{name}-এর একটি নিচু উড্ডয়ন দৃশ্য, আসল উচ্চতার তথ্য আর ঝুঁকির মানচিত্র চালানো একই পরিবর্তন সনাক্তকরণ থেকে তৈরি।",
+    },
+    scrubLabel: {
+      en: "Scrub through time",
+      bn: "সময়ের মধ্য দিয়ে সরান",
+    },
+    scrubAriaLabel: {
+      en: "Select a date to view this zone's surface at that time",
+      bn: "এই এলাকার সেই সময়ের অবস্থা দেখতে একটি তারিখ বেছে নিন",
+    },
+    noHistory: {
+      en: "No change events recorded yet for this zone. Showing the current terrain only.",
+      bn: "এই এলাকার জন্য এখনো কোনো পরিবর্তনের ঘটনা রেকর্ড করা হয়নি। শুধু বর্তমান ভূখণ্ড দেখানো হচ্ছে।",
+    },
+    // {date} is formatCitationDate output.
+    asOfDate: {
+      en: "As of {date}",
+      bn: "{date} পর্যন্ত",
     },
   },
 
