@@ -151,6 +151,13 @@ export function ZoneExplore({ zoneId, locale }: ZoneExploreProps) {
             lang={locale}
           />
         )}
+
+        <Link
+          href={`/map/${zoneId}/ground`}
+          className="type-small self-start text-river hover:text-river-deep"
+        >
+          {t(translations.zoneExplore.tryGroundView, locale)}
+        </Link>
       </div>
     </div>
   );
