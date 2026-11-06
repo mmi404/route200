@@ -568,6 +568,40 @@ export const translations = {
       en: "As of {date}",
       bn: "{date} পর্যন্ত",
     },
+    // Link to the ground/page.tsx experiment below. Lives here, not in the
+    // groundView group, since this page (zoneExplore) owns the string the
+    // same way mapPage owns exploreIn3d.
+    tryGroundView: {
+      en: "Try the ground view (experimental)",
+      bn: "ভূমি দৃশ্য দেখুন (পরীক্ষামূলক)",
+    },
+  },
+
+  // ---------------------------------------------------------------------
+  // groundView: app/map/[zoneId]/ground/page.tsx and _components/*. A
+  // second, separate way to look at one zone (PROGRESS.md, "Phase 3:
+  // Ground View"): a stylized low-poly walkthrough instead of the real
+  // terrain + color drape. Reuses zoneExplore's backToMap/notFoundHeading/
+  // noHistory strings rather than duplicating them.
+  // ---------------------------------------------------------------------
+  groundView: {
+    metaTitlePrefix: {
+      en: "Ground view",
+      bn: "ভূমি দৃশ্য",
+    },
+    loading: {
+      en: "Growing the terrain…",
+      bn: "ভূখণ্ড তৈরি হচ্ছে…",
+    },
+    dragHint: {
+      en: "Drag to look around",
+      bn: "চারপাশ দেখতে টেনে ধরুন",
+    },
+    // {name} is the zone's display name, already locale-resolved.
+    caption: {
+      en: "An illustrated walk through {name}, built from its real recorded history. The trees, road and house are stylized, not satellite imagery.",
+      bn: "{name}-এর আসল রেকর্ড করা ইতিহাস থেকে তৈরি একটি চিত্রিত দৃশ্য। গাছ, রাস্তা আর বাড়ি শৈলীকৃত, এগুলো স্যাটেলাইট ছবি নয়।",
+    },
   },
 
   // ---------------------------------------------------------------------
