@@ -117,9 +117,14 @@ export function InspectPanel({
         />
       )}
 
-      <ButtonLink href={`/alerts?zone=${properties.id}`} size="md">
-        {t(copy.getAlertsForThisZone, locale)}
-      </ButtonLink>
+      <div className="flex flex-col items-start gap-3">
+        <ButtonLink href={`/map/${properties.id}`} size="md">
+          {t(copy.exploreIn3d, locale)}
+        </ButtonLink>
+        <ButtonLink href={`/alerts?zone=${properties.id}`} size="md" variant="secondary">
+          {t(copy.getAlertsForThisZone, locale)}
+        </ButtonLink>
+      </div>
     </div>
   );
 }
