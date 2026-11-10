@@ -18,6 +18,9 @@ type ExploreScrubberProps = {
   day: number;
   onChangeAction: (day: number) => void;
   className?: string;
+  /** Tighter layout for floating HUDs: the "Scrub through time" label stays
+   *  for screen readers but is not drawn. */
+  compact?: boolean;
 };
 
 // Literal class strings so Tailwind's static scan can see them (same
@@ -44,6 +47,7 @@ export function ExploreScrubber({
   day,
   onChangeAction,
   className = "",
+  compact = false,
 }: ExploreScrubberProps) {
   const copy = translations.zoneExplore;
   const bounds = dateRangeOfEvents(history);
@@ -54,7 +58,9 @@ export function ExploreScrubber({
 
   return (
     <div className={className}>
-      <p className="type-eyebrow mb-3 text-ink-muted">{t(copy.scrubLabel, locale)}</p>
+      <p className={compact ? "sr-only" : "type-eyebrow mb-3 text-ink-muted"}>
+        {t(copy.scrubLabel, locale)}
+      </p>
       <div className="relative h-5">
         <div
           aria-hidden="true"
@@ -88,7 +94,7 @@ export function ExploreScrubber({
           onChange={(event) => onChangeAction(Number(event.target.value))}
         />
       </div>
-      <div className="type-meta mt-2 flex justify-between text-ink-subtle">
+      <div className={`type-meta flex justify-between text-ink-subtle ${compact ? "mt-1" : "mt-2"}`}>
         <span>{formatCitationDate(bounds.low)}</span>
         <span className="font-medium text-ink">
           {format(t(copy.asOfDate, locale), { date: formatCitationDate(dayIndexToIso(day)) })}

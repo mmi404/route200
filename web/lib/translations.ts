@@ -597,9 +597,52 @@ export const translations = {
       en: "Click to walk",
       bn: "হাঁটতে ক্লিক করুন",
     },
-    controlsHint: {
-      en: "W A S D to walk, mouse to look, Shift to run, Q / E to move through time, Esc to release the mouse",
-      bn: "W A S D চেপে হাঁটুন, মাউস দিয়ে চারপাশ দেখুন, Shift চেপে দৌড়ান, Q / E দিয়ে সময়ে এগোন বা পিছোন, মাউস ছাড়তে Esc চাপুন",
+    walkPromptTouch: {
+      en: "Touch and drag to explore",
+      bn: "আঙুল টেনে ঘুরে দেখুন",
+    },
+    // Key legend (desktop). Each label sits next to its key caps, so it is
+    // one to three words.
+    legendWalk: {
+      en: "Walk",
+      bn: "হাঁটুন",
+    },
+    legendRun: {
+      en: "Run",
+      bn: "দৌড়ান",
+    },
+    legendTime: {
+      en: "Time",
+      bn: "সময়",
+    },
+    legendEsc: {
+      en: "Free mouse",
+      bn: "মাউস ছাড়ুন",
+    },
+    // Replaces legendEsc while the pointer is locked: the slider cannot be
+    // clicked until Esc releases the mouse.
+    legendEscLocked: {
+      en: "Use slider",
+      bn: "স্লাইডার ব্যবহার",
+    },
+    legendTouch: {
+      en: "Left thumb to walk, drag to look",
+      bn: "বাঁ আঙুলে হাঁটুন, টেনে চারপাশ দেখুন",
+    },
+    controlsToggle: {
+      en: "Controls",
+      bn: "নিয়ন্ত্রণ",
+    },
+    // Live readout: the band is interpolated between recorded events, so it
+    // is labelled an estimate. "No data" (common.noData) shows before the
+    // zone's first recorded event.
+    readoutLabel: {
+      en: "Estimated risk",
+      bn: "আনুমানিক ঝুঁকি",
+    },
+    webglUnavailable: {
+      en: "This device could not start the 3D view. You can still follow this zone on the map.",
+      bn: "এই ডিভাইসে ৩ডি দৃশ্য চালু করা যায়নি। মানচিত্রে এই এলাকার তথ্য দেখতে পারবেন।",
     },
     // {name} is the zone's display name, already locale-resolved.
     caption: {

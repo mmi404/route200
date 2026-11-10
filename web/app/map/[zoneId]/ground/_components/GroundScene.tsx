@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, type RefObject } from "react";
-import { Canvas } from "@react-three/fiber";
+import { useEffect, useMemo, type RefObject } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { LOOK } from "../_lib/look";
 import { EYE_HEIGHT } from "../_lib/player";
@@ -26,9 +26,40 @@ type GroundSceneProps = {
   inputRef: RefObject<WalkInput>;
   /** "low" trades fidelity for speed: coarser terrain, no antialiasing, lower pixel ratio. */
   quality?: GroundQuality;
+  /** Called when the WebGL context is lost and does not come back. */
+  onContextFailed?: () => void;
 };
 
 const TREE_COUNT = 1400;
+/** How long a lost context gets to be restored before the view gives up. */
+const CONTEXT_RESTORE_MS = 4000;
+
+/**
+ * Watches the renderer's canvas. A lost context is normally restored by the
+ * browser within moments (three.js rebuilds its state); only if it is still
+ * gone after CONTEXT_RESTORE_MS is the failure reported.
+ */
+function ContextGuard({ onFail }: { onFail: () => void }) {
+  const canvas = useThree((state) => state.gl.domElement);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onLost = (event: Event) => {
+      // Without this the browser never attempts a restore.
+      event.preventDefault();
+      clearTimeout(timer);
+      timer = setTimeout(onFail, CONTEXT_RESTORE_MS);
+    };
+    const onRestored = () => clearTimeout(timer);
+    canvas.addEventListener("webglcontextlost", onLost);
+    canvas.addEventListener("webglcontextrestored", onRestored);
+    return () => {
+      clearTimeout(timer);
+      canvas.removeEventListener("webglcontextlost", onLost);
+      canvas.removeEventListener("webglcontextrestored", onRestored);
+    };
+  }, [canvas, onFail]);
+  return null;
+}
 
 /**
  * The Ground View 3D scene (PROGRESS.md, "Phase 3: Ground View"): a
@@ -42,6 +73,10 @@ const TREE_COUNT = 1400;
  * composes them with the lights, fog and camera. Locomotion lives in
  * PlayerController.
  *
+ * Frames are driven by requestAnimationFrame (R3F's default "always"
+ * loop), which browsers stop in hidden tabs, so nothing renders while the
+ * tab is in the background.
+ *
  * @react-three/fiber's Canvas is SSR-safe on its own (it renders an inert
  * <canvas> wrapper during the server pass and defers all WebGL work to
  * effects), so no client-only mount gate is needed here.
@@ -52,6 +87,7 @@ export function GroundScene({
   reducedMotion,
   inputRef,
   quality = "high",
+  onContextFailed,
 }: GroundSceneProps) {
   const layout = useMemo(() => sceneLayoutForZone(zoneId), [zoneId]);
   const trees = useMemo(() => generateTreeSlots(layout, TREE_COUNT), [layout]);
@@ -76,6 +112,7 @@ export function GroundScene({
       camera={{ fov: 65, near: 0.1, far: 800, position: initialCamera }}
       className="h-full w-full"
     >
+      {onContextFailed && <ContextGuard onFail={onContextFailed} />}
       <Atmosphere layout={layout} reducedMotion={reducedMotion} />
       <Terrain layout={layout} severityFraction={severityFraction} quality={quality} />
       <Forest
