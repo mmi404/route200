@@ -4,16 +4,30 @@ import { isoToDayIndex } from "../../../_lib/severity";
 import {
   baseHeight,
   clearedAmount,
+  FENCE_SLAT_SPACING,
+  POLE_HEIGHT,
+  generateDistantTreeSlots,
+  generateLogSlots,
   generateTreeSlots,
+  generateUndergrowthSlots,
   houseAppear,
+  houseToWorld,
+  isSeverityStatic,
+  logAmount,
   roadAppear,
   roadInfo,
   roadWidth,
   sceneLayoutForZone,
+  settlementObstacles,
+  settlementPlan,
   severityAtDay,
+  stumpAmount,
   terrainHeight,
   terrainHeightFromBase,
   treeVisibility,
+  treeVisibilityFromCleared,
+  UNDERGROWTH_KINDS,
+  undergrowthVisibility,
 } from "./terrain";
 
 const ZONES = ["zone-cht-teknaf", "zone-jmn-sirajganj", "zone-x", "zone-cht-bandarban"];
@@ -269,5 +283,128 @@ describe("severityAtDay", () => {
   it("stays flat at the latest reading after the last event", () => {
     expect(severityAtDay(history, day("2026-09-26"))).toBe(83);
     expect(severityAtDay(history, day("2027-03-01"))).toBe(83);
+  });
+});
+
+describe("vegetation layers", () => {
+  const layout = sceneLayoutForZone("zone-cht-teknaf");
+  const half = roadWidth / 2;
+
+  it("treeVisibilityFromCleared matches treeVisibility", () => {
+    const slots = generateTreeSlots(layout, 200);
+    for (const sev of [0, 0.4, 0.7, 0.83, 1]) {
+      for (const s of slots) {
+        const cleared = clearedAmount(s.x, s.z, layout, sev);
+        expect(treeVisibilityFromCleared(s, cleared, layout, sev)).toBeCloseTo(treeVisibility(s, layout, sev), 10);
+      }
+    }
+  });
+
+  it("scatters distant trees outside the walkable disc, deterministically", () => {
+    const far = generateDistantTreeSlots(layout, 300);
+    expect(far).toHaveLength(300);
+    for (const s of far) {
+      expect(Math.hypot(s.x, s.z)).toBeGreaterThanOrEqual(layout.walkRadius + 4 - 1e-6);
+      expect(Math.hypot(s.x, s.z)).toBeLessThanOrEqual(layout.worldRadius + 1e-6);
+    }
+    expect(generateDistantTreeSlots(layout, 300)).toEqual(far);
+  });
+
+  it("generates seeded undergrowth of every kind inside the walkable area and margin", () => {
+    const slots = generateUndergrowthSlots(layout, 3000);
+    expect(slots).toHaveLength(3000);
+    expect(generateUndergrowthSlots(layout, 3000)).toEqual(slots);
+    const counts = UNDERGROWTH_KINDS.map((_, k) => slots.filter((s) => s.kind === k).length);
+    for (const c of counts) expect(c).toBeGreaterThan(150);
+    for (const s of slots) expect(Math.hypot(s.x, s.z)).toBeLessThanOrEqual(layout.walkRadius + 14 + 1e-6);
+    for (const s of slots) expect(Math.hypot(s.x - layout.spawn.x, s.z - layout.spawn.z)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("removes undergrowth with clearing and never leaves it on the road bed or house pad", () => {
+    const slots = generateUndergrowthSlots(layout, 3000);
+    expect(slots.every((s) => undergrowthVisibility(s, 0) === 1)).toBe(true);
+    for (const s of slots) {
+      const v = undergrowthVisibility(s, clearedAmount(s.x, s.z, layout, 1));
+      if (roadInfo(s.x, s.z, layout).dist < half) expect(v).toBe(0);
+      if (Math.hypot(s.x - layout.house.x, s.z - layout.house.z) < 5) expect(v).toBe(0);
+    }
+  });
+
+  it("classifies spots no severity can change as static, and trees there really never change", () => {
+    const slots = generateTreeSlots(layout, 600);
+    for (const s of slots) {
+      if (!isSeverityStatic(s.x, s.z, layout)) continue;
+      expect(treeVisibility(s, layout, 1)).toBe(1);
+      expect(terrainHeight(s.x, s.z, layout, 1)).toBeCloseTo(terrainHeight(s.x, s.z, layout, 0), 9);
+    }
+    expect(slots.some((s) => isSeverityStatic(s.x, s.z, layout))).toBe(true);
+    expect(slots.some((s) => !isSeverityStatic(s.x, s.z, layout))).toBe(true);
+  });
+
+  it("leaves stumps where trees were felled, but not while they stand, nor on the road bed or house pad", () => {
+    const slots = generateTreeSlots(layout, 1400);
+    expect(slots.every((s) => stumpAmount(s, treeVisibility(s, layout, 0), layout, 0) === 0)).toBe(true);
+    let stumps = 0;
+    for (const s of slots) {
+      const vis = treeVisibility(s, layout, 1);
+      const amount = stumpAmount(s, vis, layout, 1);
+      if (vis > 0.55) expect(amount).toBe(0);
+      if (amount > 0.5) stumps++;
+      if (roadInfo(s.x, s.z, layout).dist < half + 0.6) expect(amount).toBe(0);
+      if (Math.hypot(s.x - layout.house.x, s.z - layout.house.z) < 5.5) expect(amount).toBe(0);
+    }
+    expect(stumps).toBeGreaterThan(10);
+  });
+
+  it("places felled logs only on cleared ground away from road and house, appearing with the clearing", () => {
+    const logs = generateLogSlots(layout, 22);
+    expect(logs.length).toBeGreaterThan(5);
+    for (const l of logs) {
+      expect(clearedAmount(l.x, l.z, layout, 1)).toBeGreaterThanOrEqual(0.9);
+      expect(roadInfo(l.x, l.z, layout).dist).toBeGreaterThan(half);
+      expect(logAmount(l, layout, 0)).toBe(0);
+      expect(logAmount(l, layout, 1)).toBeGreaterThan(0.9);
+    }
+  });
+});
+
+describe("settlement plan", () => {
+  it("is stable per layout and puts poles beside the road, not on it", () => {
+    for (const zone of ZONES) {
+      const layout = sceneLayoutForZone(zone);
+      const plan = settlementPlan(layout);
+      expect(settlementPlan(layout)).toBe(plan);
+      expect(plan.poles.length).toBeGreaterThanOrEqual(2);
+      for (const pole of plan.poles) {
+        expect(roadInfo(pole.x, pole.z, layout).dist).toBeGreaterThanOrEqual(roadWidth / 2);
+        expect(Math.hypot(pole.x, pole.z)).toBeLessThanOrEqual(layout.walkRadius + 32 + 1e-6);
+      }
+    }
+  });
+
+  it("keeps the homestead out of the road and gives obstacles only when built", () => {
+    const layout = sceneLayoutForZone("zone-cht-teknaf");
+    const plan = settlementPlan(layout);
+    expect(settlementObstacles(layout, 0)).toHaveLength(0);
+    const full = settlementObstacles(layout, 1);
+    expect(full.length).toBeGreaterThan(plan.poles.length);
+    for (const o of full) expect(o.r).toBeGreaterThan(0);
+    const homestead = [
+      ...plan.fence.map((p) => houseToWorld(layout, p.lx, p.lz)),
+      houseToWorld(layout, plan.shed.lx, plan.shed.lz),
+      houseToWorld(layout, plan.logStack.lx, plan.logStack.lz),
+      ...plan.bananas.map((b) => houseToWorld(layout, b.lx, b.lz)),
+    ];
+    for (const p of homestead) expect(roadInfo(p.x, p.z, layout).dist).toBeGreaterThan(roadWidth / 2);
+    expect(POLE_HEIGHT).toBeGreaterThan(6);
+    expect(FENCE_SLAT_SPACING).toBeGreaterThan(0);
+  });
+
+  it("maps house-local points to world coordinates the way the scene rotates them", () => {
+    const layout = sceneLayoutForZone("zone-cht-teknaf");
+    const front = houseToWorld(layout, 0, 5);
+    // Local +Z is the door side, which points at the road end.
+    expect(front.x - layout.house.x).toBeCloseTo(Math.sin(layout.house.yaw) * 5, 9);
+    expect(front.z - layout.house.z).toBeCloseTo(Math.cos(layout.house.yaw) * 5, 9);
   });
 });

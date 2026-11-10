@@ -559,6 +559,18 @@ export function treeVisibility(
   severityFraction: number,
 ): number {
   const cleared = clearedAmount(slot.x, slot.z, layout, severityFraction);
+  return treeVisibilityFromCleared(slot, cleared, layout, severityFraction);
+}
+
+/** `treeVisibility` when the cleared amount at the slot is already known
+ *  (the renderer gets it together with the ground height from one
+ *  `surfaceFromBase` call, so the noise is evaluated once per slider tick). */
+export function treeVisibilityFromCleared(
+  slot: Pick<TreeSlot, "x" | "z" | "jitter">,
+  cleared: number,
+  layout: SceneLayout,
+  severityFraction: number,
+): number {
   const start = 0.1 + 0.5 * slot.jitter;
   let visible = 1 - smoothstep(cleared, start, start + 0.25);
   if (visible <= 0) return 0;
@@ -612,4 +624,327 @@ export function severityAtDay(history: ChangeEvent[], day: number): number {
     }
   }
   return last.severity;
+}
+
+// ---------------------------------------------------------------------------
+// Vegetation beyond the collidable big trees: far ridge trees, undergrowth,
+// felled logs and stumps. All seeded per layout, none of it collidable.
+// ---------------------------------------------------------------------------
+
+/** True for a spot no severity value can change: beyond the scar's reach, the
+ *  road shoulder and the house pad. The renderer writes these instances once
+ *  and only re-evaluates the rest while the slider moves. */
+export function isSeverityStatic(x: number, z: number, layout: SceneLayout): boolean {
+  const scarReach = layout.scarMaxRadius * 1.3 + 5;
+  if (Math.hypot(x - layout.scarCenter.x, z - layout.scarCenter.z) <= scarReach) return false;
+  if (Math.hypot(x - layout.house.x, z - layout.house.z) <= PAD_BLEND_RADIUS + 2) return false;
+  return roadInfo(x, z, layout).dist > roadWidth / 2 + 1 + MAX_ROAD_BLEND + 3;
+}
+
+/** Extra tree slots on the encircling ridge and the far slopes, past the
+ *  walkable disc (nobody can reach them, so they carry no collision and the
+ *  caller can draw them with a cheaper tree). Same slot shape as the near trees. */
+export function generateDistantTreeSlots(layout: SceneLayout, count: number): TreeSlot[] {
+  const rng = createRng(layout.seed + 104729);
+  const inner = layout.walkRadius + 4;
+  const slots: TreeSlot[] = [];
+  while (slots.length < count) {
+    const radius = Math.sqrt(inner * inner + rng() * (layout.worldRadius ** 2 - inner * inner));
+    const angle = rng() * Math.PI * 2;
+    slots.push({
+      x: Math.cos(angle) * radius,
+      z: Math.sin(angle) * radius,
+      rotationY: rng() * Math.PI * 2,
+      baseScale: 0.8 + rng() * 0.8,
+      variant: Math.min(3, Math.floor(rng() * 4)),
+      jitter: rng(),
+    });
+  }
+  return slots;
+}
+
+/** Undergrowth kinds, in the order the renderer builds their meshes. */
+export const UNDERGROWTH_KINDS = ["fern", "shrub", "grass", "paddle", "sapling"] as const;
+/** Share of slots per kind (sums to 1). */
+const UNDERGROWTH_WEIGHTS = [0.27, 0.17, 0.26, 0.1, 0.2];
+
+export interface UndergrowthSlot {
+  x: number;
+  z: number;
+  rotationY: number;
+  /** 0.65..1.45, multiplies the kind's nominal size. */
+  scale: number;
+  /** Index into UNDERGROWTH_KINDS. */
+  kind: number;
+  /** 0..1, seeded; staggers when this plant clears relative to neighbours. */
+  jitter: number;
+}
+
+function pickUndergrowthKind(u: number): number {
+  let acc = 0;
+  for (let i = 0; i < UNDERGROWTH_WEIGHTS.length; i++) {
+    acc += UNDERGROWTH_WEIGHTS[i];
+    if (u < acc) return i;
+  }
+  return UNDERGROWTH_WEIGHTS.length - 1;
+}
+
+/** Ferns, shrubs, grass, big-leaf plants and saplings across the walkable
+ *  area plus a margin: part uniform, part gathered in patches so the forest
+ *  floor has thickets and open glades rather than an even sprinkle. */
+export function generateUndergrowthSlots(layout: SceneLayout, count: number): UndergrowthSlot[] {
+  const rng = createRng(layout.seed + 31337);
+  const reach = layout.walkRadius + 14;
+  const clusterCount = Math.max(8, Math.round(count / 22));
+  const clusters = Array.from({ length: clusterCount }, () => {
+    const r = reach * Math.sqrt(rng());
+    const a = rng() * Math.PI * 2;
+    return { x: Math.cos(a) * r, z: Math.sin(a) * r, spread: 2.5 + rng() * 4.5, kind: pickUndergrowthKind(rng()) };
+  });
+  const slots: UndergrowthSlot[] = [];
+  while (slots.length < count) {
+    let x: number;
+    let z: number;
+    let kind: number;
+    if (rng() < 0.6) {
+      const c = clusters[Math.floor(rng() * clusters.length)];
+      x = c.x + (rng() + rng() + rng() - 1.5) * 2 * c.spread;
+      z = c.z + (rng() + rng() + rng() - 1.5) * 2 * c.spread;
+      kind = rng() < 0.65 ? c.kind : pickUndergrowthKind(rng());
+    } else {
+      const r = reach * Math.sqrt(rng());
+      const a = rng() * Math.PI * 2;
+      x = Math.cos(a) * r;
+      z = Math.sin(a) * r;
+      kind = pickUndergrowthKind(rng());
+    }
+    const rotationY = rng() * Math.PI * 2;
+    const scale = 0.65 + rng() * 0.8;
+    const jitter = rng();
+    if (Math.hypot(x, z) > reach) continue;
+    // Nothing growing in the visitor's face on arrival.
+    if (Math.hypot(x - layout.spawn.x, z - layout.spawn.z) < 3) continue;
+    slots.push({ x, z, rotationY, scale, kind, jitter });
+  }
+  return slots;
+}
+
+/** How present (0..1) an undergrowth plant is, given the cleared amount at
+ *  its spot. Plants go before trees do, and cleared is 1 on the road bed and
+ *  the house pad, so nothing grows there. */
+export function undergrowthVisibility(slot: Pick<UndergrowthSlot, "jitter">, cleared: number): number {
+  const start = 0.02 + 0.3 * slot.jitter;
+  return 1 - smoothstep(cleared, start, start + 0.25);
+}
+
+/** 0..1, how much of a felled tree's stump stands at a spot where the tree's
+ *  own visibility is `vis`. Absent while the tree stands, on the road bed and
+ *  on the house pad, and about one tree in five leaves no stump at all. */
+export function stumpAmount(
+  slot: Pick<TreeSlot, "x" | "z" | "jitter">,
+  vis: number,
+  layout: SceneLayout,
+  severityFraction: number,
+): number {
+  let amount = 1 - smoothstep(vis, 0.3, 0.55);
+  if (amount <= 0) return 0;
+  const noStump = (slot.jitter * 97.13) % 1 < 0.18;
+  if (noStump) return 0;
+  const rAppear = roadAppear(severityFraction);
+  if (rAppear > 0) {
+    const d = roadInfo(slot.x, slot.z, layout).dist;
+    const half = roadWidth / 2;
+    amount *= 1 - rAppear * (1 - smoothstep(d, half + 0.6, half + 1.4));
+  }
+  const hAppear = houseAppear(severityFraction);
+  if (hAppear > 0) {
+    const d = Math.hypot(slot.x - layout.house.x, slot.z - layout.house.z);
+    amount *= 1 - hAppear * (1 - smoothstep(d, PAD_FLAT_RADIUS + 0.5, PAD_FLAT_RADIUS + 2.5));
+  }
+  return clamp01(amount);
+}
+
+export interface LogSlot {
+  x: number;
+  z: number;
+  yaw: number;
+  /** Metres. */
+  length: number;
+  /** Metres. */
+  radius: number;
+  jitter: number;
+}
+
+/** Felled logs lying in the cleared ground, away from the road and the pad. */
+export function generateLogSlots(layout: SceneLayout, count: number): LogSlot[] {
+  const rng = createRng(layout.seed + 6151);
+  const logs: LogSlot[] = [];
+  for (let attempt = 0; attempt < count * 60 && logs.length < count; attempt++) {
+    const a = rng() * Math.PI * 2;
+    const d = layout.scarMaxRadius * (0.3 + 0.45 * rng());
+    const x = layout.scarCenter.x + Math.cos(a) * d;
+    const z = layout.scarCenter.z + Math.sin(a) * d;
+    const yaw = rng() * Math.PI;
+    const length = 3 + rng() * 3;
+    const radius = 0.2 + rng() * 0.15;
+    const jitter = rng();
+    if (clearedAmount(x, z, layout, 1) < 0.9) continue;
+    if (roadInfo(x, z, layout).dist < roadWidth / 2 + length / 2 + 1) continue;
+    if (Math.hypot(x - layout.house.x, z - layout.house.z) < 8 + length / 2) continue;
+    if (logs.some((l) => Math.hypot(l.x - x, l.z - z) < 4)) continue;
+    logs.push({ x, z, yaw, length, radius, jitter });
+  }
+  return logs;
+}
+
+/** 0..1, how present a felled log is: it lies there once the clearing has
+ *  reached its spot. */
+export function logAmount(
+  slot: Pick<LogSlot, "x" | "z">,
+  layout: SceneLayout,
+  severityFraction: number,
+): number {
+  return smoothstep(clearedAmount(slot.x, slot.z, layout, severityFraction), 0.55, 0.85);
+}
+
+// ---------------------------------------------------------------------------
+// Settlement layout: utility poles along the road and the homestead around
+// the house. Positions only; the renderer owns the geometry.
+// ---------------------------------------------------------------------------
+
+/** World x/z of a point given in the house's local frame (+Z toward the road). */
+export function houseToWorld(layout: SceneLayout, lx: number, lz: number): { x: number; z: number } {
+  const { x, z, yaw } = layout.house;
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  return { x: x + lx * c + lz * s, z: z - lx * s + lz * c };
+}
+
+export interface PolePlacement {
+  x: number;
+  z: number;
+  /** Rotation about +Y that points the cross-arm (local x) across the road. */
+  yaw: number;
+}
+
+export interface SettlementPlan {
+  poles: PolePlacement[];
+  stones: Array<{ x: number; z: number; size: number; yaw: number }>;
+  /** Fence path in the house's local frame, metres. */
+  fence: Array<{ lx: number; lz: number }>;
+  /** Cowshed footprint centre and size, house-local. */
+  shed: { lx: number; lz: number; width: number; depth: number };
+  bananas: Array<{ lx: number; lz: number; scale: number; yaw: number }>;
+  logStack: { lx: number; lz: number; yaw: number };
+  clothesline: { a: { lx: number; lz: number }; b: { lx: number; lz: number } };
+}
+
+/** Height of a utility pole, metres. */
+export const POLE_HEIGHT = 8;
+/** Spacing of fence slats along the fence path, metres. */
+export const FENCE_SLAT_SPACING = 0.2;
+
+const planCache = new WeakMap<SceneLayout, SettlementPlan>();
+
+export function settlementPlan(layout: SceneLayout): SettlementPlan {
+  const cached = planCache.get(layout);
+  if (cached) return cached;
+  const rng = createRng(layout.seed + 90001);
+
+  // Poles: every ~22 m along the road from its house end, on the left-hand
+  // verge, cross-arm across the road.
+  const road = layout.road;
+  const poles: PolePlacement[] = [];
+  const stones: SettlementPlan["stones"] = [];
+  const offset = roadWidth / 2 + 0.9;
+  const spacing = 22;
+  let carried = 6;
+  for (let i = road.length - 1; i > 0; i--) {
+    const a = road[i];
+    const b = road[i - 1];
+    const segLen = Math.hypot(b.x - a.x, b.z - a.z);
+    if (segLen === 0) continue;
+    const tx = (b.x - a.x) / segLen;
+    const tz = (b.z - a.z) / segLen;
+    const nx = -tz;
+    const nz = tx;
+    let along = carried;
+    while (along < segLen) {
+      const px = a.x + tx * along + nx * offset;
+      const pz = a.z + tz * along + nz * offset;
+      if (Math.hypot(px, pz) <= layout.walkRadius + 32) {
+        poles.push({ x: px, z: pz, yaw: Math.atan2(-nz, nx) });
+      }
+      along += spacing;
+    }
+    carried = along - segLen;
+    // Marker stones: now and then, either verge, close to the bed edge.
+    if (rng() < 0.7) {
+      const side = rng() < 0.5 ? -1 : 1;
+      const u = rng() * segLen;
+      const out = roadWidth / 2 + 0.9 + rng() * 1.1;
+      stones.push({
+        x: a.x + tx * u + nx * out * side,
+        z: a.z + tz * u + nz * out * side,
+        size: 0.28 + rng() * 0.3,
+        yaw: rng() * Math.PI * 2,
+      });
+    }
+  }
+
+  const plan: SettlementPlan = {
+    poles,
+    stones: stones.filter((s) => Math.hypot(s.x, s.z) <= layout.walkRadius + 32),
+    fence: [
+      { lx: 7.0, lz: 2.4 },
+      { lx: 7.0, lz: -5.0 },
+      { lx: -7.4, lz: -5.0 },
+      { lx: -7.4, lz: 0.4 },
+    ],
+    shed: { lx: -5.2, lz: 0.3, width: 2.4, depth: 2.2 },
+    bananas: [
+      { lx: -3.9, lz: 3.3, scale: 1.0, yaw: 0.4 },
+      { lx: -4.6, lz: 2.2, scale: 0.8, yaw: 2.1 },
+      { lx: 4.4, lz: -3.3, scale: 1.1, yaw: 4.0 },
+    ],
+    logStack: { lx: 5.4, lz: -0.8, yaw: 0.25 },
+    clothesline: { a: { lx: -2.4, lz: -4.0 }, b: { lx: 2.8, lz: -4.1 } },
+  };
+  planCache.set(layout, plan);
+  return plan;
+}
+
+/** Circles (world x/z, metres) the visitor should not walk through: utility
+ *  poles once the road is there, and the homestead dressing around the house
+ *  (porch, cowshed, fence, bananas, log stack) once it is built. The house
+ *  walls themselves are covered by HOUSE_SIZE in the player controller. */
+export function settlementObstacles(
+  layout: SceneLayout,
+  severityFraction: number,
+): Array<{ x: number; z: number; r: number }> {
+  const out: Array<{ x: number; z: number; r: number }> = [];
+  const plan = settlementPlan(layout);
+  if (roadAppear(severityFraction) > 0.85) {
+    for (const pole of plan.poles) out.push({ x: pole.x, z: pole.z, r: 0.22 });
+  }
+  if (houseAppear(severityFraction) > 0.85) {
+    const add = (lx: number, lz: number, r: number) => out.push({ ...houseToWorld(layout, lx, lz), r });
+    // Porch and veranda, past the walls HOUSE_SIZE already covers.
+    for (const lx of [-1.3, 0, 1.3]) add(lx, 3.7, 0.7);
+    add(plan.shed.lx, plan.shed.lz - 0.55, 1.0);
+    add(plan.shed.lx, plan.shed.lz + 0.55, 1.0);
+    for (const b of plan.bananas) add(b.lx, b.lz, 0.3);
+    add(plan.logStack.lx, plan.logStack.lz, 0.8);
+    for (let i = 0; i < plan.fence.length - 1; i++) {
+      const a = plan.fence[i];
+      const b = plan.fence[i + 1];
+      const len = Math.hypot(b.lx - a.lx, b.lz - a.lz);
+      const steps = Math.max(1, Math.round(len / 1.1));
+      for (let s = 0; s <= steps; s++) {
+        const t = s / steps;
+        add(a.lx + (b.lx - a.lx) * t, a.lz + (b.lz - a.lz) * t, 0.45);
+      }
+    }
+  }
+  return out;
 }
