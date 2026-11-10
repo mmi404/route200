@@ -3,6 +3,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { LOOK } from "../../_lib/look";
+import type { GroundQuality } from "../../_lib/quality";
 import {
   baseHeight,
   roadAppear,
@@ -14,7 +15,7 @@ import {
   type SurfaceSample,
 } from "../../_lib/terrain";
 
-export type GroundQuality = "high" | "low";
+export type { GroundQuality };
 
 type TerrainProps = {
   layout: SceneLayout;
@@ -90,10 +91,17 @@ function glslColor(hex: string): string {
   return `vec3(${c.r.toFixed(5)}, ${c.g.toFixed(5)}, ${c.b.toFixed(5)})`;
 }
 
-function groundShaderSource(): string {
+/**
+ * GROUND_LOW compiles the cheaper path for phones: fbm drops from three
+ * octaves to two, and the close-range detail terms (mottling, clumps, blade
+ * speckle, rill warp, pebbles and clods) are skipped. The large-scale look
+ * (moss, litter, soil, road, dapple) is unchanged.
+ */
+function groundShaderSource(quality: GroundQuality): string {
   const g = LOOK.ground;
   const r = LOOK.road;
   return /* glsl */ `
+${quality === "low" ? "#define GROUND_LOW" : ""}
 const vec3 C_GRASS_LIGHT = ${glslColor(g.grassLight)};
 const vec3 C_GRASS = ${glslColor(g.grass)};
 const vec3 C_GRASS_SHADE = ${glslColor(g.grassShade)};
@@ -122,12 +130,19 @@ float vn(vec2 p) {
 const mat2 ROT = mat2(1.6, 1.2, -1.2, 1.6);
 float fbm3(vec2 p) {
   p = mat2(0.8, 0.6, -0.6, 0.8) * p;
+#ifdef GROUND_LOW
+  float s = 0.5 * vn(p);
+  p = ROT * p + 17.1;
+  s += 0.25 * vn(p);
+  return s / 0.75;
+#else
   float s = 0.5 * vn(p);
   p = ROT * p + 17.1;
   s += 0.25 * vn(p);
   p = ROT * p + 9.7;
   s += 0.125 * vn(p);
   return s / 0.875;
+#endif
 }
 
 varying vec3 vGWorld;
@@ -153,12 +168,14 @@ vec3 groundAlbedo(float viewDist) {
   f = mix(f, C_GRASS_SHADE, moss * 0.85);
   float litter = smoothstep(0.56, 0.68, fbm3(p * 0.21 + 70.0));
   f = mix(f, C_LITTER, litter * 0.55 * midK);
+#ifndef GROUND_LOW
   // Painterly mottling: organic darker and lighter clumps, then fine blade speckle.
   float mott = fbm3(p * 1.25 + 30.0);
   f = mix(f, f * 0.9, smoothstep(0.5, 0.66, mott) * nearK);
   float clump = fbm3(p * 2.3 + 60.0);
   f = mix(f, mix(f, C_GRASS_LIGHT, 0.55), smoothstep(0.56, 0.7, clump) * 0.3 * nearK);
   f *= 0.95 + 0.1 * mix(0.5, vn(p * vec2(9.0, 5.0)), nearK);
+#endif
   f = mix(f, mix(C_ROCK, C_SOIL_CUT, 0.45 + 0.4 * patchN), steep * mix(0.1, 0.5, midK));
 
   // Cleared earth: dry lighter tops, darker freshly cut faces, rills, clods.
@@ -167,10 +184,15 @@ vec3 groundAlbedo(float viewDist) {
   s = mix(s, C_SOIL_CUT, cutFace * (0.55 + 0.35 * patchN));
   vec2 dir = normalize(n.xz + vec2(1e-5));
   vec2 perp = vec2(-dir.y, dir.x);
+#ifdef GROUND_LOW
+  float warp = vn(p * 0.18 + 21.0) * 9.0;
+#else
   float warp = fbm3(p * 0.18 + 21.0) * 9.0;
+#endif
   float rills = vn(vec2(dot(p, perp) * 2.3 + warp, dot(p, dir) * 0.32 + warp * 0.7));
   rills = smoothstep(0.55, 0.85, rills);
   s *= 1.0 - rills * smoothstep(0.05, 0.22, slope) * 0.26 * midK;
+#ifndef GROUND_LOW
   vec2 cell = p * 4.5;
   vec2 id = floor(cell);
   vec2 fc = fract(cell) - 0.5 - (vec2(h21(id + 3.1), h21(id + 7.7)) - 0.5) * 0.5;
@@ -181,6 +203,7 @@ vec3 groundAlbedo(float viewDist) {
   s = mix(s, mix(C_ROCK, C_SOIL_DRY, 0.35), pebble * 0.85 * nearK);
   s *= 1.0 - clod * 0.22 * nearK;
   s *= 0.95 + 0.1 * mix(0.5, vn(p * 2.1), nearK);
+#endif
 
   // Irregular, noise-broken edge between forest floor and cleared earth.
   float edgeN = fbm3(p * 0.42 + 5.0) * 0.65 + vn(p * 1.6) * 0.35;
@@ -215,10 +238,12 @@ vec3 groundAlbedo(float viewDist) {
 `;
 }
 
-let cachedSource: string | null = null;
+type ShaderParts = { vertexShader: string; fragmentShader: string };
 
-function patchGroundShader(shader: { vertexShader: string; fragmentShader: string }): void {
-  cachedSource ??= groundShaderSource();
+const cachedSource: Partial<Record<GroundQuality, string>> = {};
+
+function patchGroundShader(shader: ShaderParts, quality: GroundQuality): void {
+  const source = (cachedSource[quality] ??= groundShaderSource(quality));
   shader.vertexShader = shader.vertexShader
     .replace(
       "#include <common>",
@@ -239,12 +264,24 @@ vGCleared = aCleared;
 vGRoad = aRoad;`,
     );
   shader.fragmentShader = shader.fragmentShader
-    .replace("#include <common>", `#include <common>\n${cachedSource}`)
+    .replace("#include <common>", `#include <common>\n${source}`)
     .replace(
       "#include <color_fragment>",
       "#include <color_fragment>\ndiffuseColor.rgb = groundAlbedo(length(vViewPosition));",
     );
 }
+
+// Module-level so the material gets stable props (and a distinct program
+// cache key per tier: three's cache would otherwise share one compiled
+// program between the two sources).
+const PATCH_BY_QUALITY: Record<GroundQuality, (shader: ShaderParts) => void> = {
+  high: (shader) => patchGroundShader(shader, "high"),
+  low: (shader) => patchGroundShader(shader, "low"),
+};
+const CACHE_KEY_BY_QUALITY: Record<GroundQuality, () => string> = {
+  high: () => "ground-high",
+  low: () => "ground-low",
+};
 
 /**
  * The displaced terrain mesh. One tensor grid: 1 m cells inside the walkable
@@ -339,7 +376,11 @@ export function Terrain({ layout, severityFraction, quality = "high" }: TerrainP
 
   return (
     <mesh ref={meshRef} geometry={geometry} frustumCulled={false}>
-      <meshLambertMaterial onBeforeCompile={patchGroundShader} />
+      <meshLambertMaterial
+        key={quality}
+        onBeforeCompile={PATCH_BY_QUALITY[quality]}
+        customProgramCacheKey={CACHE_KEY_BY_QUALITY[quality]}
+      />
     </mesh>
   );
 }
