@@ -157,3 +157,40 @@ describe("stepPlayer", () => {
     expect(-end.z).toBeLessThanOrEqual(WALK_SPEED * 0.05 + 1e-9);
   });
 });
+
+describe("stepPlayer walls", () => {
+  // A 6 x 4.5 m box rotated a quarter turn, like the homestead.
+  const box = { x: 0, z: -10, yaw: Math.PI / 2, halfW: 3, halfD: 2.25 };
+  const world = flatWorld({ boxes: [box] });
+
+  function insideBox(state: PlayerState): boolean {
+    const cos = Math.cos(box.yaw);
+    const sin = Math.sin(box.yaw);
+    const dx = state.x - box.x;
+    const dz = state.z - box.z;
+    const lx = dx * cos - dz * sin;
+    const lz = dx * sin + dz * cos;
+    return Math.abs(lx) < box.halfW + PLAYER_RADIUS && Math.abs(lz) < box.halfD + PLAYER_RADIUS;
+  }
+
+  it("never lets the player through any face, including the middle of an end wall", () => {
+    for (let k = 0; k < 16; k++) {
+      const angle = (k / 16) * Math.PI * 2;
+      const from = start({
+        x: box.x + Math.sin(angle) * 9,
+        z: box.z + Math.cos(angle) * 9,
+        yaw: angle,
+      });
+      // yaw = angle looks back toward the box centre from that side.
+      const end = run(from, { moveZ: 1, sprint: true }, 6, world);
+      expect(insideBox(end)).toBe(false);
+    }
+  });
+
+  it("slides along a wall instead of sticking", () => {
+    const from = start({ x: 1.5, z: 0, yaw: 0.35 });
+    const end = run(from, { moveZ: 1 }, 5, world);
+    expect(insideBox(end)).toBe(false);
+    expect(Math.abs(end.x - from.x)).toBeGreaterThan(1);
+  });
+});

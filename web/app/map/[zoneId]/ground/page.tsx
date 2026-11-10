@@ -21,7 +21,7 @@ type ZoneParams = Promise<{ zoneId: string }>;
  * real severity color on real elevation, this page is a stylized low-poly
  * walkthrough: a forest that thins, a clearing that opens, a road and a
  * house that appear, as the zone's real recorded history gets more severe.
- * Kept on its own route specifically so both can be judged independently.
+ * Kept on its own route specifically so each can be assessed on its own.
  *
  * Same params-inside-Suspense pattern as /map/[zoneId]/page.tsx, for the
  * same Cache Components reason documented there.

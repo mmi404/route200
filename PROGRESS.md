@@ -189,8 +189,8 @@ User reviewed phase 2's `/map/[zoneId]` live and liked it, but said it's "just c
 - [x] **P2a: Walkable world and movement** (branch `ground-view-walkable`).
 - [x] **P2b: Ground shading, sky and lighting**.
 - [x] **P2c: Jungle, homestead and road furniture**.
-- [ ] **P2d: Touch controls, HUD and low-power tier**.
-- [ ] **P2e: QA pass** (`tsc`, `eslint`, `vitest`, `next build`, live walk-through on desktop and phone widths).
+- [x] **P2d: Touch controls, HUD and low-power tier** (`1190954`, `4ea6f1e`).
+- [ ] **P2e: QA pass, fixes applied, live re-check of the fixes still open** (`tsc`, `eslint`, `vitest`, `next build`, live walk-through on desktop and phone widths).
 - [ ] **P3: Expand to the other 11 zones**, deliberately deferred. The code is already generic over zone id (everything is seeded from the id and the zone's own event history), but only `zone-cht-teknaf` has been looked at, and erosion-kind (Jamuna) zones still need their own river story instead of the hill-cut one.
 
 **Walkable rebuild (2026-11-10, branch `ground-view-walkable` off `ground-view-prototype`)**
@@ -215,6 +215,8 @@ What was built, by commit:
 - `3505fbd`: homestead and pole collision wired into `PlayerController`; `quality` and `reducedMotion` forwarded to `Forest`.
 
 Verified by the orchestrator directly (not from subagent reports), with a headless Chrome harness driving the running dev server on :3000: `tsc --noEmit`, `eslint app lib` and `vitest run` (119 tests) clean after each piece. Holding W moves the player (position read from `__groundDebug`) with the eye staying 1.7 m above the ground; drag-look turns the view; the slider at its first day shows unbroken layered jungle, and at its last day the same walk leads out onto tan cut soil with stumps and logs, the dirt road with wheel tracks, utility poles, and the finished homestead; a mid-range day shows the forest edge receding. Measured 60 fps at 1280x760 on this machine's integrated AMD GPU in the dense forest view. Known and accepted: no real-time shadows (grounding comes from Lambert shading and painted canopy dapple); because the zone's recorded severity jumps from 20 to 68 between its first two events, the house's construction stages pass within a narrow band of the slider.
+
+QA pass (2026-11-10, independent read-only run on the real GPU): no blocking defects. Eye height stayed 1.2 to 2.6 m above ground over 240 s random walks including while scrubbing, max radius 54 m, 60 fps at rest in both tiers, all 12 zone ids load without errors, WebGL fallback and reduced motion work. Fixed afterwards in one commit: the house collider is now an oriented box with a wall standoff (the circle collider let the camera through the middle of each end wall), trees only collide while drawn standing, a thicket of saplings and shrubs crowds the foot of the ridge (the stop slope read as bare ground), terrain updates only touch vertices the cut or road can change, and the scene severity is deferred so the slider stays responsive. `tsc`, `eslint`, `vitest` (142 tests) clean after the fixes. **Still open**: the fixes are covered by unit tests but were not re-confirmed in the running scene (the steering script for that check did not reach the walls); scrub frame rate measured 33 fps after the change against 27 before, still below 60; `next build` was last run before these fixes. Left as found: Q and E held together do not cancel, a `THREE.Clock` deprecation warning from the renderer library, and the global site header crowding at 360 px wide.
 
 **Session log (phase 3)**:
 - **2026-11-07** — Branch created, plan written above. Starting P1 prototype now.

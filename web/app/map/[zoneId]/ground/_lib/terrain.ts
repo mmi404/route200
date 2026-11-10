@@ -706,7 +706,16 @@ export function generateUndergrowthSlots(layout: SceneLayout, count: number): Un
     let x: number;
     let z: number;
     let kind: number;
-    if (rng() < 0.6) {
+    const pick = rng();
+    if (pick < 0.2) {
+      // Rim thicket: saplings and shrubs crowd the foot of the ridge, so the
+      // slope that ends the walk reads as dense jungle, not bare ground.
+      const r = layout.walkRadius - 9 + rng() * 21;
+      const a = rng() * Math.PI * 2;
+      x = Math.cos(a) * r;
+      z = Math.sin(a) * r;
+      kind = rng() < 0.6 ? 4 : rng() < 0.6 ? 1 : 3;
+    } else if (pick < 0.68) {
       const c = clusters[Math.floor(rng() * clusters.length)];
       x = c.x + (rng() + rng() + rng() - 1.5) * 2 * c.spread;
       z = c.z + (rng() + rng() + rng() - 1.5) * 2 * c.spread;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { prefersReducedMotion } from "@/lib/design-tokens";
 import { format, t, zoneDisplayName } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
@@ -66,6 +66,10 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
     : isoToDayIndex(new Date().toISOString().slice(0, 10));
   const day = selectedDay ?? defaultDay;
   const severity = useMemo(() => severityAtDay(history, day), [history, day]);
+  // The scene rebuilds terrain and forest state per severity change. Deferring
+  // it keeps the slider thumb and readout immediate during a fast scrub and
+  // lets React drop intermediate values the scene has no time to draw.
+  const sceneSeverity = useDeferredValue(severity);
 
   const dayRange = useMemo(() => {
     const bounds = dateRangeOfEvents(history);
@@ -162,7 +166,7 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
         >
           <GroundScene
             zoneId={zoneId}
-            severity={severity}
+            severity={sceneSeverity}
             reducedMotion={reducedMotion}
             inputRef={inputRef}
             quality={quality}

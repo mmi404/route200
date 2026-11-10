@@ -28,6 +28,8 @@ type TerrainProps = {
 const FINE_HALF = 72;
 /** The mesh runs this far past `worldRadius`, dropping away behind the ridge crest. */
 const SKIRT = 50;
+/** Severities sampled once per layout to find which vertices can ever change. */
+const SEVERITY_PROBES = [1, 0.85, 0.7, 0.55, 0.4, 0.25];
 /** How far the skirt falls (metres), so it can never rise above the far ranges. */
 const SKIRT_DROP = 90;
 
@@ -295,7 +297,7 @@ const CACHE_KEY_BY_QUALITY: Record<GroundQuality, () => string> = {
  * depend on vertex density.
  */
 export function Terrain({ layout, severityFraction, quality = "high" }: TerrainProps) {
-  const { geometry, baseHeights, roadDist, lines } = useMemo(() => {
+  const { geometry, baseHeights, roadDist, lines, affected } = useMemo(() => {
     const fine = quality === "high" ? 1 : 1.8;
     const limit = layout.worldRadius + SKIRT;
     const lines = axisLines(fine, limit, quality === "high" ? 1.1 : 1.16);
@@ -334,13 +336,34 @@ export function Terrain({ layout, severityFraction, quality = "high" }: TerrainP
         w += 6;
       }
     }
+    // Most of the world never changes with severity. Write its resting state
+    // once and remember only the vertices the cut, the road or the house pad
+    // can ever touch, so a slider tick rewrites a fraction of the grid.
+    const clearedInit = new Float32Array(count);
+    const affectedList: number[] = [];
+    const probe: SurfaceSample = { height: 0, cleared: 0 };
+    const skirtStart = layout.worldRadius;
+    for (let k = 0; k < count; k++) {
+      const x = positions[k * 3];
+      const z = positions[k * 3 + 2];
+      const fall = smoothstep(Math.hypot(x, z), skirtStart, skirtStart + SKIRT);
+      positions[k * 3 + 1] = base[k] - fall * SKIRT_DROP;
+      let touched = road[k] < roadWidth / 2 + 2;
+      for (const sev of SEVERITY_PROBES) {
+        if (touched) break;
+        surfaceFromBase(base[k], x, z, layout, sev, probe);
+        touched = probe.cleared > 1e-4 || Math.abs(probe.height - base[k]) > 1e-4;
+      }
+      if (touched) affectedList.push(k);
+    }
+    const affected = Uint32Array.from(affectedList);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    geo.setAttribute("aCleared", new THREE.BufferAttribute(new Float32Array(count), 1));
+    geo.setAttribute("aCleared", new THREE.BufferAttribute(clearedInit, 1));
     geo.setAttribute("aRoad", new THREE.BufferAttribute(roadAttr, 2));
     geo.setIndex(new THREE.BufferAttribute(index, 1));
-    return { geometry: geo, baseHeights: base, roadDist: road, lines };
+    return { geometry: geo, baseHeights: base, roadDist: road, lines, affected };
   }, [layout, quality]);
 
   const meshRef = useRef<THREE.Mesh>(null);
@@ -356,7 +379,8 @@ export function Terrain({ layout, severityFraction, quality = "high" }: TerrainP
     const sample: SurfaceSample = { height: 0, cleared: 0 };
     const appear = roadAppear(severityFraction);
     const skirtStart = layout.worldRadius;
-    for (let i = 0; i < position.count; i++) {
+    for (let n = 0; n < affected.length; n++) {
+      const i = affected[n];
       const x = position.getX(i);
       const z = position.getZ(i);
       surfaceFromBase(baseHeights[i], x, z, layout, severityFraction, sample);
@@ -370,7 +394,7 @@ export function Terrain({ layout, severityFraction, quality = "high" }: TerrainP
     road.needsUpdate = true;
     writeGridNormals(target.attributes.normal, position, lines);
     target.attributes.normal.needsUpdate = true;
-  }, [geometry, baseHeights, roadDist, lines, layout, severityFraction]);
+  }, [geometry, baseHeights, roadDist, lines, affected, layout, severityFraction]);
 
   useLayoutEffect(() => () => geometry.dispose(), [geometry]);
 

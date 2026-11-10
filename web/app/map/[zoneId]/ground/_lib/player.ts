@@ -35,6 +35,10 @@ export interface PlayerWorld {
   walkRadius: number;
   /** Circles the player cannot enter (tree trunks, the house). */
   obstacles: ReadonlyArray<{ x: number; z: number; r: number }>;
+  /** Oriented boxes the player cannot enter (building walls). `yaw` rotates
+   *  the box about Y the way three.js does: local +X maps to
+   *  (cos yaw, -sin yaw), local +Z to (sin yaw, cos yaw). */
+  boxes?: ReadonlyArray<{ x: number; z: number; yaw: number; halfW: number; halfD: number }>;
   /** Skip acceleration smoothing and eye-height easing. */
   reducedMotion?: boolean;
 }
@@ -44,6 +48,8 @@ export const SPRINT_SPEED = 7.5;
 export const EYE_HEIGHT = 1.7;
 export const MIN_EYE_HEIGHT = 1.2;
 export const PLAYER_RADIUS = 0.35;
+/** Extra clearance kept from flat walls, so a wall never fills the whole view. */
+export const WALL_STANDOFF = 0.35;
 export const MAX_PITCH = 1.25;
 export const MAX_DT = 0.05;
 export const MAX_CLIMB_ANGLE = (38 * Math.PI) / 180;
@@ -164,6 +170,37 @@ export function stepPlayer(
     const nz = d > 1e-6 ? dz / d : vx !== 0 || vz !== 0 ? -vz / Math.hypot(vx, vz) : 0;
     x = o.x + nx * minDist;
     z = o.z + nz * minDist;
+    const into = vx * nx + vz * nz;
+    if (into < 0) {
+      vx -= nx * into;
+      vz -= nz * into;
+    }
+  }
+
+  // Walls: push out of each oriented box along its nearest face and drop
+  // the velocity into that face, so the player slides along the wall.
+  for (const b of world.boxes ?? []) {
+    const cos = Math.cos(b.yaw);
+    const sin = Math.sin(b.yaw);
+    const dx = x - b.x;
+    const dz = z - b.z;
+    const lx = dx * cos - dz * sin;
+    const lz = dx * sin + dz * cos;
+    const hw = b.halfW + PLAYER_RADIUS + WALL_STANDOFF;
+    const hd = b.halfD + PLAYER_RADIUS + WALL_STANDOFF;
+    if (Math.abs(lx) >= hw || Math.abs(lz) >= hd) continue;
+    const penX = hw - Math.abs(lx);
+    const penZ = hd - Math.abs(lz);
+    let nlx = 0;
+    let nlz = 0;
+    if (penX < penZ) nlx = lx >= 0 ? 1 : -1;
+    else nlz = lz >= 0 ? 1 : -1;
+    const outLx = nlx !== 0 ? nlx * hw : lx;
+    const outLz = nlz !== 0 ? nlz * hd : lz;
+    x = b.x + outLx * cos + outLz * sin;
+    z = b.z - outLx * sin + outLz * cos;
+    const nx = nlx * cos + nlz * sin;
+    const nz = -nlx * sin + nlz * cos;
     const into = vx * nx + vz * nz;
     if (into < 0) {
       vx -= nx * into;

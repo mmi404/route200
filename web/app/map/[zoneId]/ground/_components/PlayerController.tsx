@@ -39,7 +39,10 @@ type PlayerControllerProps = {
 
 type Obstacle = { x: number; z: number; r: number };
 
-const TRUNK_RADIUS = 0.35;
+const TRUNK_RADIUS = 0.3;
+/** A tree collides only while it is still drawn standing (the renderer
+ *  topples and removes it below roughly this visibility). */
+const STANDING_VISIBILITY = 0.6;
 const CELL = 8;
 /** Trunks within this distance of the player are collision candidates. */
 const NEAR = 3;
@@ -58,28 +61,6 @@ function buildTreeGrid(trees: TreeSlot[]): Map<number, number[]> {
     else grid.set(key, [index]);
   });
   return grid;
-}
-
-/** The house as a few circles along its long axis (a circle for a 6 x 4.5 m
- *  box would either clip the walls or leave the corners walkable). */
-function houseCircles(layout: SceneLayout): Obstacle[] {
-  const { x, z, yaw } = layout.house;
-  // Local +X (long axis) in world x/z for a rotation of `yaw` about Y.
-  const ax = Math.cos(yaw);
-  const az = -Math.sin(yaw);
-  // Local +Z (depth axis).
-  const bx = Math.sin(yaw);
-  const bz = Math.cos(yaw);
-  const r = HOUSE_SIZE.depth / 4;
-  const circles: Obstacle[] = [];
-  for (let i = -2; i <= 2; i++) {
-    for (const j of [-1, 1]) {
-      const along = (i * (HOUSE_SIZE.width - 2 * r)) / 4;
-      const across = j * (HOUSE_SIZE.depth / 2 - r);
-      circles.push({ x: x + ax * along + bx * across, z: z + az * along + bz * across, r });
-    }
-  }
-  return circles;
 }
 
 /**
@@ -103,7 +84,18 @@ export function PlayerController({
   });
 
   const grid = useMemo(() => buildTreeGrid(trees), [trees]);
-  const house = useMemo(() => houseCircles(layout), [layout]);
+  const house = useMemo(
+    () => [
+      {
+        x: layout.house.x,
+        z: layout.house.z,
+        yaw: layout.house.yaw,
+        halfW: HOUSE_SIZE.width / 2,
+        halfD: HOUSE_SIZE.depth / 2,
+      },
+    ],
+    [layout],
+  );
   const playerRef = useRef<{ layout: SceneLayout; state: PlayerState } | null>(null);
   // Porch, cowshed, fence, log stack and utility poles: rebuilt only when
   // the severity (or the layout) actually changes, not every frame.
@@ -147,13 +139,12 @@ export function PlayerController({
           const tree = trees[index];
           if (Math.abs(tree.x - current.x) > NEAR || Math.abs(tree.z - current.z) > NEAR) continue;
           const visible = treeVisibility(tree, layout, sev);
-          if (visible > 0.5) {
-            obstacles.push({ x: tree.x, z: tree.z, r: TRUNK_RADIUS * tree.baseScale * visible });
+          if (visible > STANDING_VISIBILITY) {
+            obstacles.push({ x: tree.x, z: tree.z, r: TRUNK_RADIUS * tree.baseScale });
           }
         }
       }
     }
-    if (houseAppear(sev) > 0.5) obstacles.push(...house);
     let dressing = dressingRef.current;
     if (!dressing || dressing.layout !== layout || dressing.sev !== sev) {
       dressing = { layout, sev, circles: settlementObstacles(layout, sev) };
@@ -169,6 +160,7 @@ export function PlayerController({
       heightAt,
       walkRadius: layout.walkRadius,
       obstacles,
+      boxes: houseAppear(sev) > 0.5 ? house : undefined,
       reducedMotion: reducedRef.current,
     });
     playerRef.current.state = next;
