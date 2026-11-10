@@ -2,7 +2,8 @@
 
 import { useMemo, type RefObject } from "react";
 import { Canvas } from "@react-three/fiber";
-import { PALETTE } from "@/lib/design-tokens";
+import * as THREE from "three";
+import { LOOK } from "../_lib/look";
 import { EYE_HEIGHT } from "../_lib/player";
 import {
   clamp01,
@@ -14,7 +15,8 @@ import { PlayerController } from "./PlayerController";
 import type { WalkInput } from "./useWalkInput";
 import { Forest } from "./scene/Forest";
 import { Settlement } from "./scene/Settlement";
-import { Terrain } from "./scene/Terrain";
+import { Atmosphere } from "./scene/Atmosphere";
+import { Terrain, type GroundQuality } from "./scene/Terrain";
 
 type GroundSceneProps = {
   zoneId: string;
@@ -22,10 +24,11 @@ type GroundSceneProps = {
   severity: number;
   reducedMotion: boolean;
   inputRef: RefObject<WalkInput>;
+  /** "low" trades fidelity for speed: coarser terrain, no antialiasing, lower pixel ratio. */
+  quality?: GroundQuality;
 };
 
 const TREE_COUNT = 1400;
-const SKY_COLOR = PALETTE.riverLight;
 
 /**
  * The Ground View 3D scene (PROGRESS.md, "Phase 3: Ground View"): a
@@ -43,7 +46,13 @@ const SKY_COLOR = PALETTE.riverLight;
  * <canvas> wrapper during the server pass and defers all WebGL work to
  * effects), so no client-only mount gate is needed here.
  */
-export function GroundScene({ zoneId, severity, reducedMotion, inputRef }: GroundSceneProps) {
+export function GroundScene({
+  zoneId,
+  severity,
+  reducedMotion,
+  inputRef,
+  quality = "high",
+}: GroundSceneProps) {
   const layout = useMemo(() => sceneLayoutForZone(zoneId), [zoneId]);
   const trees = useMemo(() => generateTreeSlots(layout, TREE_COUNT), [layout]);
   const severityFraction = clamp01(severity / 100);
@@ -58,15 +67,17 @@ export function GroundScene({ zoneId, severity, reducedMotion, inputRef }: Groun
   return (
     <Canvas
       shadows={false}
-      dpr={[1, 1.75]}
-      camera={{ fov: 65, near: 0.1, far: 400, position: initialCamera }}
+      dpr={quality === "high" ? [1, 1.75] : [1, 1.25]}
+      gl={{
+        antialias: quality === "high",
+        toneMapping: THREE.ACESFilmicToneMapping,
+        toneMappingExposure: LOOK.atmosphere.exposure,
+      }}
+      camera={{ fov: 65, near: 0.1, far: 800, position: initialCamera }}
       className="h-full w-full"
     >
-      <color attach="background" args={[SKY_COLOR]} />
-      <fog attach="fog" args={[SKY_COLOR, 40, 170]} />
-      <hemisphereLight args={[SKY_COLOR, "#7d8a5c", 0.95]} />
-      <directionalLight position={[60, 90, 35]} intensity={1.2} />
-      <Terrain layout={layout} severityFraction={severityFraction} />
+      <Atmosphere layout={layout} reducedMotion={reducedMotion} />
+      <Terrain layout={layout} severityFraction={severityFraction} quality={quality} />
       <Forest layout={layout} trees={trees} severityFraction={severityFraction} />
       <Settlement layout={layout} severityFraction={severityFraction} />
       <PlayerController

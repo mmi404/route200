@@ -2,40 +2,309 @@
 
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { baseHeight, surfaceFromBase, type SceneLayout, type SurfaceSample } from "../../_lib/terrain";
+import { LOOK } from "../../_lib/look";
+import {
+  baseHeight,
+  roadAppear,
+  roadInfo,
+  roadWidth,
+  smoothstep,
+  surfaceFromBase,
+  type SceneLayout,
+  type SurfaceSample,
+} from "../../_lib/terrain";
+
+export type GroundQuality = "high" | "low";
 
 type TerrainProps = {
   layout: SceneLayout;
   /** 0..1 */
   severityFraction: number;
+  quality?: GroundQuality;
 };
 
-/** Square grid over the world disk's bounding box (1 m cells near 240 m / 200). */
-const SEGMENTS = 200;
+/** Cells are uniform inside this half-extent (a bit past the walkable disc). */
+const FINE_HALF = 72;
+/** The mesh runs this far past `worldRadius`, dropping away behind the ridge crest. */
+const SKIRT = 50;
+/** How far the skirt falls (metres), so it can never rise above the far ranges. */
+const SKIRT_DROP = 90;
 
-// Plain colours for now; the ground-shading pass replaces these.
-const GROUND_COLOR = new THREE.Color("#4f7d3b");
-const SOIL_COLOR = new THREE.Color("#8a6a4a");
+/** Positive half of one grid axis: uniform `fine` spacing out to FINE_HALF,
+ *  then spacing that grows geometrically out to `limit`. */
+function axisHalf(fine: number, limit: number, growth: number): number[] {
+  const steps = Math.round(FINE_HALF / fine);
+  const step = FINE_HALF / steps;
+  const out: number[] = [];
+  for (let i = 0; i <= steps; i++) out.push(i * step);
+  let at = FINE_HALF;
+  let s = step;
+  while (at < limit) {
+    s *= growth;
+    at = Math.min(limit, at + s);
+    out.push(at);
+  }
+  return out;
+}
+
+/** Full symmetric axis lines, -limit .. limit. */
+function axisLines(fine: number, limit: number, growth: number): number[] {
+  const half = axisHalf(fine, limit, growth);
+  const lines: number[] = [];
+  for (let i = half.length - 1; i > 0; i--) lines.push(-half[i]);
+  return lines.concat(half);
+}
+
+/** Smooth normals for the tensor grid by central differences on the height
+ *  field (about five times cheaper than a generic computeVertexNormals pass,
+ *  and exact for non-uniform spacing). */
+function writeGridNormals(
+  normal: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+  position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+  lines: number[],
+): void {
+  const n = lines.length;
+  for (let j = 0; j < n; j++) {
+    const j0 = Math.max(0, j - 1);
+    const j1 = Math.min(n - 1, j + 1);
+    const dz = lines[j1] - lines[j0];
+    for (let i = 0; i < n; i++) {
+      const i0 = Math.max(0, i - 1);
+      const i1 = Math.min(n - 1, i + 1);
+      const gx = (position.getY(j * n + i1) - position.getY(j * n + i0)) / (lines[i1] - lines[i0]);
+      const gz = (position.getY(j1 * n + i) - position.getY(j0 * n + i)) / dz;
+      const inv = 1 / Math.sqrt(gx * gx + 1 + gz * gz);
+      normal.setXYZ(j * n + i, -gx * inv, inv, -gz * inv);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Ground shader: three's Lambert lighting and fog, with the albedo replaced
+// by procedural world-space noise. Colours come from LOOK and are baked into
+// the source as linear constants.
+// ---------------------------------------------------------------------------
+
+function glslColor(hex: string): string {
+  const c = new THREE.Color(hex);
+  return `vec3(${c.r.toFixed(5)}, ${c.g.toFixed(5)}, ${c.b.toFixed(5)})`;
+}
+
+function groundShaderSource(): string {
+  const g = LOOK.ground;
+  const r = LOOK.road;
+  return /* glsl */ `
+const vec3 C_GRASS_LIGHT = ${glslColor(g.grassLight)};
+const vec3 C_GRASS = ${glslColor(g.grass)};
+const vec3 C_GRASS_SHADE = ${glslColor(g.grassShade)};
+const vec3 C_LITTER = ${glslColor(g.leafLitter)};
+const vec3 C_SOIL_DRY = ${glslColor(g.soilDry)};
+const vec3 C_SOIL = ${glslColor(g.soil)};
+const vec3 C_SOIL_CUT = ${glslColor(g.soilCut)};
+const vec3 C_ROCK = ${glslColor(g.rock)};
+const vec3 C_ROAD = ${glslColor(r.surface)};
+const vec3 C_TRACK = ${glslColor(r.track)};
+const vec3 C_ROAD_EDGE = ${glslColor(r.edge)};
+const float ROAD_HALF = ${(roadWidth / 2).toFixed(3)};
+
+float h21(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+float vn(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), u.x),
+             mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+const mat2 ROT = mat2(1.6, 1.2, -1.2, 1.6);
+float fbm3(vec2 p) {
+  p = mat2(0.8, 0.6, -0.6, 0.8) * p;
+  float s = 0.5 * vn(p);
+  p = ROT * p + 17.1;
+  s += 0.25 * vn(p);
+  p = ROT * p + 9.7;
+  s += 0.125 * vn(p);
+  return s / 0.875;
+}
+
+varying vec3 vGWorld;
+varying vec3 vGNormal;
+varying float vGCleared;
+varying vec2 vGRoad;
+
+vec3 groundAlbedo(float viewDist) {
+  vec2 p = vGWorld.xz;
+  vec3 n = normalize(vGNormal);
+  float slope = 1.0 - clamp(n.y, 0.0, 1.0);
+  float nearK = 1.0 - smoothstep(18.0, 60.0, viewDist);
+  float midK = 1.0 - smoothstep(45.0, 110.0, viewDist);
+
+  float broad = fbm3(p * 0.03 + 11.0);
+  float patchN = fbm3(p * 0.14 + 3.0);
+  float steep = smoothstep(0.10, 0.34, slope);
+  float cutFace = smoothstep(0.09, 0.30, slope);
+
+  // Forest floor: varied greens, mossy hollows, brown leaf litter.
+  vec3 f = mix(C_GRASS, C_GRASS_LIGHT, smoothstep(0.38, 0.72, patchN));
+  float moss = smoothstep(0.42, 0.7, fbm3(p * 0.085 + 40.0));
+  f = mix(f, C_GRASS_SHADE, moss * 0.85);
+  float litter = smoothstep(0.56, 0.68, fbm3(p * 0.21 + 70.0));
+  f = mix(f, C_LITTER, litter * 0.55 * midK);
+  // Painterly mottling: organic darker and lighter clumps, then fine blade speckle.
+  float mott = fbm3(p * 1.25 + 30.0);
+  f = mix(f, f * 0.9, smoothstep(0.5, 0.66, mott) * nearK);
+  float clump = fbm3(p * 2.3 + 60.0);
+  f = mix(f, mix(f, C_GRASS_LIGHT, 0.55), smoothstep(0.56, 0.7, clump) * 0.3 * nearK);
+  f *= 0.95 + 0.1 * mix(0.5, vn(p * vec2(9.0, 5.0)), nearK);
+  f = mix(f, mix(C_ROCK, C_SOIL_CUT, 0.45 + 0.4 * patchN), steep * mix(0.1, 0.5, midK));
+
+  // Cleared earth: dry lighter tops, darker freshly cut faces, rills, clods.
+  vec3 s = mix(C_SOIL, C_SOIL_DRY, smoothstep(0.3, 0.7, broad) * 0.8 + 0.1);
+  s = mix(s, C_SOIL_DRY, (1.0 - cutFace) * smoothstep(0.5, 0.75, patchN) * 0.5);
+  s = mix(s, C_SOIL_CUT, cutFace * (0.55 + 0.35 * patchN));
+  vec2 dir = normalize(n.xz + vec2(1e-5));
+  vec2 perp = vec2(-dir.y, dir.x);
+  float warp = fbm3(p * 0.18 + 21.0) * 9.0;
+  float rills = vn(vec2(dot(p, perp) * 2.3 + warp, dot(p, dir) * 0.32 + warp * 0.7));
+  rills = smoothstep(0.55, 0.85, rills);
+  s *= 1.0 - rills * smoothstep(0.05, 0.22, slope) * 0.26 * midK;
+  vec2 cell = p * 4.5;
+  vec2 id = floor(cell);
+  vec2 fc = fract(cell) - 0.5 - (vec2(h21(id + 3.1), h21(id + 7.7)) - 0.5) * 0.5;
+  float pick = h21(id);
+  float dotM = 1.0 - smoothstep(0.07, 0.13, length(fc));
+  float pebble = step(0.82, pick) * dotM;
+  float clod = step(0.6, pick) * (1.0 - step(0.82, pick)) * dotM;
+  s = mix(s, mix(C_ROCK, C_SOIL_DRY, 0.35), pebble * 0.85 * nearK);
+  s *= 1.0 - clod * 0.22 * nearK;
+  s *= 0.95 + 0.1 * mix(0.5, vn(p * 2.1), nearK);
+
+  // Irregular, noise-broken edge between forest floor and cleared earth.
+  float edgeN = fbm3(p * 0.42 + 5.0) * 0.65 + vn(p * 1.6) * 0.35;
+  float m = smoothstep(0.42, 0.58, vGCleared + (edgeN - 0.5) * 0.8);
+  float disturbed = m * (1.0 - smoothstep(0.55, 0.9, vGCleared)) * 0.4;
+  vec3 col = mix(f, s * (1.0 - disturbed * 0.3), m);
+
+  // Road painted onto the terrain: packed dirt, two lighter wheel tracks,
+  // darker damp edges.
+  float d = vGRoad.x;
+  float a = vGRoad.y;
+  if (a > 0.0 && d < ROAD_HALF + 1.0) {
+    float jit = (vn(p * 0.8) - 0.5) * 0.4;
+    float rm = (1.0 - smoothstep(ROAD_HALF - 0.2, ROAD_HALF + 0.2, d + jit)) * a;
+    vec3 rd = C_ROAD * (0.96 + 0.08 * vn(p * 1.3));
+    float track = exp(-pow((d - 0.85) / 0.3, 2.0)) * (0.55 + 0.45 * vn(p * 0.7 + 2.0));
+    rd = mix(rd, C_TRACK, track * 0.9);
+    rd = mix(rd, mix(C_ROAD, C_SOIL, 0.6), (1.0 - smoothstep(0.0, 0.5, d)) * 0.5);
+    rd = mix(rd, C_ROAD_EDGE, smoothstep(1.3, ROAD_HALF, d) * 0.75);
+    col = mix(col, rd, rm);
+    m = max(m, rm);
+  }
+
+  // Under the canopy: dappled light on the forest floor, fading with distance.
+  float forest = 1.0 - m;
+  float dap = fbm3(p * 0.33 + 91.0) * 0.6 + vn(p * 0.95 + 7.0) * 0.4;
+  float lit = smoothstep(0.44, 0.64, dap);
+  float dapple = mix(0.64, 1.2, lit);
+  col *= mix(1.0, mix(0.84, dapple, nearK), forest);
+  return col;
+}
+`;
+}
+
+let cachedSource: string | null = null;
+
+function patchGroundShader(shader: { vertexShader: string; fragmentShader: string }): void {
+  cachedSource ??= groundShaderSource();
+  shader.vertexShader = shader.vertexShader
+    .replace(
+      "#include <common>",
+      `#include <common>
+attribute float aCleared;
+attribute vec2 aRoad;
+varying vec3 vGWorld;
+varying vec3 vGNormal;
+varying float vGCleared;
+varying vec2 vGRoad;`,
+    )
+    .replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>
+vGWorld = position;
+vGNormal = normal;
+vGCleared = aCleared;
+vGRoad = aRoad;`,
+    );
+  shader.fragmentShader = shader.fragmentShader
+    .replace("#include <common>", `#include <common>\n${cachedSource}`)
+    .replace(
+      "#include <color_fragment>",
+      "#include <color_fragment>\ndiffuseColor.rgb = groundAlbedo(length(vViewPosition));",
+    );
+}
 
 /**
- * The displaced terrain mesh. Base (severity-independent) heights are
- * computed once per layout and cached; a severity change only re-evaluates
- * the cut/pad/road part via surfaceFromBase, writes heights and vertex
- * colours into the existing buffers, and recomputes normals.
+ * The displaced terrain mesh. One tensor grid: 1 m cells inside the walkable
+ * area, cells that widen geometrically beyond it, and a skirt that falls away
+ * past the ridge crest (out of sight, so the world never shows an edge).
+ *
+ * Base heights and the road distance are severity independent and computed
+ * once per layout. A severity change only rewrites heights, the `cleared`
+ * attribute and the road-appear factor in place, then recomputes normals.
+ * All colour is a fragment shader (see groundShaderSource), so detail does not
+ * depend on vertex density.
  */
-export function Terrain({ layout, severityFraction }: TerrainProps) {
-  const { geometry, baseHeights } = useMemo(() => {
-    const size = layout.worldRadius * 2;
-    const geo = new THREE.PlaneGeometry(size, size, SEGMENTS, SEGMENTS);
-    geo.rotateX(-Math.PI / 2);
-    const position = geo.attributes.position;
-    const base = new Float32Array(position.count);
-    for (let i = 0; i < position.count; i++) {
-      base[i] = baseHeight(position.getX(i), position.getZ(i), layout);
+export function Terrain({ layout, severityFraction, quality = "high" }: TerrainProps) {
+  const { geometry, baseHeights, roadDist, lines } = useMemo(() => {
+    const fine = quality === "high" ? 1 : 1.8;
+    const limit = layout.worldRadius + SKIRT;
+    const lines = axisLines(fine, limit, quality === "high" ? 1.1 : 1.16);
+    const n = lines.length;
+    const count = n * n;
+    const positions = new Float32Array(count * 3);
+    const base = new Float32Array(count);
+    const road = new Float32Array(count);
+    const roadAttr = new Float32Array(count * 2);
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        const k = j * n + i;
+        const x = lines[i];
+        const z = lines[j];
+        positions[k * 3] = x;
+        positions[k * 3 + 2] = z;
+        base[k] = baseHeight(x, z, layout);
+        road[k] = Math.min(60, roadInfo(x, z, layout).dist);
+        roadAttr[k * 2] = road[k];
+      }
     }
-    geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(position.count * 3), 3));
-    return { geometry: geo, baseHeights: base };
-  }, [layout]);
+    const index = new Uint32Array((n - 1) * (n - 1) * 6);
+    let w = 0;
+    for (let j = 0; j < n - 1; j++) {
+      for (let i = 0; i < n - 1; i++) {
+        const a = j * n + i;
+        const b = a + 1;
+        const c = a + n;
+        const d = c + 1;
+        // Alternate the diagonal so facets do not all lean one way.
+        if ((i + j) % 2 === 0) {
+          index.set([a, c, b, b, c, d], w);
+        } else {
+          index.set([a, c, d, a, d, b], w);
+        }
+        w += 6;
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    geo.setAttribute("aCleared", new THREE.BufferAttribute(new Float32Array(count), 1));
+    geo.setAttribute("aRoad", new THREE.BufferAttribute(roadAttr, 2));
+    geo.setIndex(new THREE.BufferAttribute(index, 1));
+    return { geometry: geo, baseHeights: base, roadDist: road, lines };
+  }, [layout, quality]);
 
   const meshRef = useRef<THREE.Mesh>(null);
 
@@ -45,29 +314,32 @@ export function Terrain({ layout, severityFraction }: TerrainProps) {
     const target = meshRef.current?.geometry;
     if (!target) return;
     const position = target.attributes.position;
-    const color = target.attributes.color;
+    const cleared = target.attributes.aCleared;
+    const road = target.attributes.aRoad;
     const sample: SurfaceSample = { height: 0, cleared: 0 };
-    const mixed = new THREE.Color();
+    const appear = roadAppear(severityFraction);
+    const skirtStart = layout.worldRadius;
     for (let i = 0; i < position.count; i++) {
       const x = position.getX(i);
       const z = position.getZ(i);
       surfaceFromBase(baseHeights[i], x, z, layout, severityFraction, sample);
-      position.setY(i, sample.height);
-      mixed.copy(GROUND_COLOR).lerp(SOIL_COLOR, sample.cleared);
-      color.setXYZ(i, mixed.r, mixed.g, mixed.b);
+      const fall = smoothstep(Math.hypot(x, z), skirtStart, skirtStart + SKIRT);
+      position.setY(i, sample.height - fall * SKIRT_DROP);
+      cleared.setX(i, sample.cleared);
+      road.setXY(i, roadDist[i], appear);
     }
     position.needsUpdate = true;
-    color.needsUpdate = true;
-    target.computeVertexNormals();
-    target.computeBoundingSphere();
-    target.computeBoundingBox();
-  }, [geometry, baseHeights, layout, severityFraction]);
+    cleared.needsUpdate = true;
+    road.needsUpdate = true;
+    writeGridNormals(target.attributes.normal, position, lines);
+    target.attributes.normal.needsUpdate = true;
+  }, [geometry, baseHeights, roadDist, lines, layout, severityFraction]);
 
   useLayoutEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
-    <mesh ref={meshRef} geometry={geometry}>
-      <meshStandardMaterial vertexColors roughness={1} />
+    <mesh ref={meshRef} geometry={geometry} frustumCulled={false}>
+      <meshLambertMaterial onBeforeCompile={patchGroundShader} />
     </mesh>
   );
 }

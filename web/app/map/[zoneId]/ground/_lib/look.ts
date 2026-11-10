@@ -37,6 +37,21 @@ export const LOOK = {
     soilCut: "#74563a",
     rock: "#8c8676",
   },
+  /** Far hill ranges beyond the terrain, nearest to farthest. Unlit and hand-set
+   *  (they ignore fog), each paler and warmer toward the horizon haze. */
+  far: {
+    ridgeNear: "#93a591",
+    ridgeMid: "#a9b9b0",
+    ridgeFar: "#c2cbc0",
+  },
+  /** Exponential fog density (per metre): clear at 30 m, hazed at 80 m, a pale
+   *  silhouette by 110 m. Fog colour is always `sky.horizon`. */
+  atmosphere: {
+    fogDensity: 0.0105,
+    exposure: 1.1,
+    sunIntensity: 3.0,
+    fillIntensity: 2.3,
+  },
   foliage: {
     deep: "#1f4a2c",
     mid: "#2f6a35",
@@ -45,17 +60,28 @@ export const LOOK = {
     palm: "#3c7a3a",
     bamboo: "#8aa84f",
     undergrowth: "#3b7034",
+    /** Shadowed inside of crowns and the dark underside of leaves. */
+    shadow: "#163a24",
+    /** Sun-struck crown tops and leaf tips. */
+    sunlit: "#a3c24c",
+    /** Older, yellowing fronds and grass. */
+    dry: "#98a24a",
   },
   wood: {
     trunkDark: "#4a3728",
     trunk: "#6a513a",
     trunkPale: "#8a7a62",
     cut: "#c9a878",
+    /** Weathered grey of old fence slats and poles. */
+    weathered: "#7a6e5c",
   },
   road: {
     surface: "#a47a52",
     track: "#c2a078",
     edge: "#7d5d40",
+  },
+  metal: {
+    wire: "#2b2a28",
   },
   house: {
     wall: "#c8b08a",
@@ -65,5 +91,11 @@ export const LOOK = {
     roofRust: "#a8684a",
     door: "#5a4030",
     frame: "#6e5540",
+    plinthShade: "#6a5d4d",
+    /** Dark interior seen through window openings. */
+    interior: "#2c2a25",
+    insulator: "#d8d4c6",
+    /** Washing on the line. */
+    cloth: "#d9d2c0",
   },
 } as const;
