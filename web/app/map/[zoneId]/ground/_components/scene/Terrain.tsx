@@ -65,13 +65,18 @@ function writeGridNormals(
   normal: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
   position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
   lines: number[],
+  range?: { i0: number; i1: number; j0: number; j1: number },
 ): void {
   const n = lines.length;
-  for (let j = 0; j < n; j++) {
+  const iStart = range ? range.i0 : 0;
+  const iEnd = range ? range.i1 : n - 1;
+  const jStart = range ? range.j0 : 0;
+  const jEnd = range ? range.j1 : n - 1;
+  for (let j = jStart; j <= jEnd; j++) {
     const j0 = Math.max(0, j - 1);
     const j1 = Math.min(n - 1, j + 1);
     const dz = lines[j1] - lines[j0];
-    for (let i = 0; i < n; i++) {
+    for (let i = iStart; i <= iEnd; i++) {
       const i0 = Math.max(0, i - 1);
       const i1 = Math.min(n - 1, i + 1);
       const gx = (position.getY(j * n + i1) - position.getY(j * n + i0)) / (lines[i1] - lines[i0]);
@@ -297,7 +302,7 @@ const CACHE_KEY_BY_QUALITY: Record<GroundQuality, () => string> = {
  * depend on vertex density.
  */
 export function Terrain({ layout, severityFraction, quality = "high" }: TerrainProps) {
-  const { geometry, baseHeights, roadDist, lines, affected } = useMemo(() => {
+  const { geometry, baseHeights, roadDist, lines, affected, span } = useMemo(() => {
     const fine = quality === "high" ? 1 : 1.8;
     const limit = layout.worldRadius + SKIRT;
     const lines = axisLines(fine, limit, quality === "high" ? 1.1 : 1.16);
@@ -357,13 +362,26 @@ export function Terrain({ layout, severityFraction, quality = "high" }: TerrainP
       if (touched) affectedList.push(k);
     }
     const affected = Uint32Array.from(affectedList);
+    // Grid rectangle (one cell wider) that contains every changeable vertex:
+    // normals only need recomputing inside it.
+    const span = { i0: n - 1, i1: 0, j0: n - 1, j1: 0 };
+    for (const k of affectedList) {
+      const i = k % n;
+      const j = (k - i) / n;
+      span.i0 = Math.min(span.i0, Math.max(0, i - 1));
+      span.i1 = Math.max(span.i1, Math.min(n - 1, i + 1));
+      span.j0 = Math.min(span.j0, Math.max(0, j - 1));
+      span.j1 = Math.max(span.j1, Math.min(n - 1, j + 1));
+    }
+    const normalAttr = new THREE.BufferAttribute(new Float32Array(count * 3), 3);
+    writeGridNormals(normalAttr, new THREE.BufferAttribute(positions, 3), lines);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    geo.setAttribute("normal", normalAttr);
     geo.setAttribute("aCleared", new THREE.BufferAttribute(clearedInit, 1));
     geo.setAttribute("aRoad", new THREE.BufferAttribute(roadAttr, 2));
     geo.setIndex(new THREE.BufferAttribute(index, 1));
-    return { geometry: geo, baseHeights: base, roadDist: road, lines, affected };
+    return { geometry: geo, baseHeights: base, roadDist: road, lines, affected, span };
   }, [layout, quality]);
 
   const meshRef = useRef<THREE.Mesh>(null);
@@ -392,9 +410,9 @@ export function Terrain({ layout, severityFraction, quality = "high" }: TerrainP
     position.needsUpdate = true;
     cleared.needsUpdate = true;
     road.needsUpdate = true;
-    writeGridNormals(target.attributes.normal, position, lines);
+    if (affected.length > 0) writeGridNormals(target.attributes.normal, position, lines, span);
     target.attributes.normal.needsUpdate = true;
-  }, [geometry, baseHeights, roadDist, lines, affected, layout, severityFraction]);
+  }, [geometry, baseHeights, roadDist, lines, affected, span, layout, severityFraction]);
 
   useLayoutEffect(() => () => geometry.dispose(), [geometry]);
 
