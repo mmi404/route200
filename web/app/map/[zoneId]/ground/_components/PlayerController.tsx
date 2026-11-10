@@ -6,6 +6,7 @@ import { EYE_HEIGHT, stepPlayer, type PlayerInput, type PlayerState } from "../_
 import {
   HOUSE_SIZE,
   houseAppear,
+  settlementObstacles,
   terrainHeight,
   treeVisibility,
   type SceneLayout,
@@ -104,6 +105,9 @@ export function PlayerController({
   const grid = useMemo(() => buildTreeGrid(trees), [trees]);
   const house = useMemo(() => houseCircles(layout), [layout]);
   const playerRef = useRef<{ layout: SceneLayout; state: PlayerState } | null>(null);
+  // Porch, cowshed, fence, log stack and utility poles: rebuilt only when
+  // the severity (or the layout) actually changes, not every frame.
+  const dressingRef = useRef<{ layout: SceneLayout; sev: number; circles: Obstacle[] } | null>(null);
 
   useFrame((frame, delta) => {
     const sev = severityRef.current;
@@ -150,6 +154,16 @@ export function PlayerController({
       }
     }
     if (houseAppear(sev) > 0.5) obstacles.push(...house);
+    let dressing = dressingRef.current;
+    if (!dressing || dressing.layout !== layout || dressing.sev !== sev) {
+      dressing = { layout, sev, circles: settlementObstacles(layout, sev) };
+      dressingRef.current = dressing;
+    }
+    for (const circle of dressing.circles) {
+      if (Math.abs(circle.x - current.x) < NEAR && Math.abs(circle.z - current.z) < NEAR) {
+        obstacles.push(circle);
+      }
+    }
 
     const next = stepPlayer(current, input, delta, {
       heightAt,

@@ -78,7 +78,13 @@ export function GroundScene({
     >
       <Atmosphere layout={layout} reducedMotion={reducedMotion} />
       <Terrain layout={layout} severityFraction={severityFraction} quality={quality} />
-      <Forest layout={layout} trees={trees} severityFraction={severityFraction} />
+      <Forest
+        layout={layout}
+        trees={trees}
+        severityFraction={severityFraction}
+        quality={quality}
+        reducedMotion={reducedMotion}
+      />
       <Settlement layout={layout} severityFraction={severityFraction} />
       <PlayerController
         layout={layout}
