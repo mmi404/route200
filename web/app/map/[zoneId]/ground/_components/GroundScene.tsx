@@ -1,271 +1,81 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, type RefObject } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
-import * as THREE from "three";
-import { PALETTE, SEVERITY_FILL } from "@/lib/design-tokens";
-import { severityToBand } from "@/lib/types";
+import { PALETTE } from "@/lib/design-tokens";
+import { EYE_HEIGHT } from "../_lib/player";
 import {
-  baseHeight,
   clamp01,
-  generatePatchSlots,
   generateTreeSlots,
   sceneLayoutForZone,
-  smoothstep,
   terrainHeight,
-  treeVisibility,
-  type SceneLayout,
 } from "../_lib/terrain";
+import { PlayerController } from "./PlayerController";
+import type { WalkInput } from "./useWalkInput";
+import { Forest } from "./scene/Forest";
+import { Settlement } from "./scene/Settlement";
+import { Terrain } from "./scene/Terrain";
 
 type GroundSceneProps = {
   zoneId: string;
   /** Continuous 0-100 severity for the currently scrubbed day. */
   severity: number;
   reducedMotion: boolean;
+  inputRef: RefObject<WalkInput>;
 };
 
-const TREE_COUNT = 110;
-const PATCH_COUNT = 14;
+const TREE_COUNT = 1400;
+const SKY_COLOR = PALETTE.riverLight;
 
 /**
  * The Ground View 3D scene (PROGRESS.md, "Phase 3: Ground View"): a
- * stylized, low-poly hillside the visitor can look around freely, where a
- * forest thins, a clearing opens, and a road and a house appear as the
- * zone's real recorded severity rises. Explicitly illustrative, not a
- * terrain or imagery reconstruction (that is the phase-2 /map/[zoneId]
- * page's job); see GroundView.tsx's caption copy for the same disclosure
- * shown to the visitor.
+ * stylized, human-scale (1 unit = 1 metre) jungle the visitor walks through
+ * in first person, where the forest thins, a hill is cut away, and a road
+ * and a house appear as the zone's real recorded severity rises. Explicitly
+ * illustrative, not a terrain or imagery reconstruction.
+ *
+ * Structure: each concern lives in its own file under ./scene/ (Terrain,
+ * Forest, Settlement) so it can be reworked independently; this file only
+ * composes them with the lights, fog and camera. Locomotion lives in
+ * PlayerController.
  *
  * @react-three/fiber's Canvas is SSR-safe on its own (it renders an inert
- * <canvas> wrapper during the server pass and defers all WebGL/context
- * work to effects, which never run on the server), the same reasoning
- * TerrainCanvas.tsx relies on for its own MapLibre container: no separate
- * client-only mount gate is needed here.
+ * <canvas> wrapper during the server pass and defers all WebGL work to
+ * effects), so no client-only mount gate is needed here.
  */
-export function GroundScene({ zoneId, severity, reducedMotion }: GroundSceneProps) {
+export function GroundScene({ zoneId, severity, reducedMotion, inputRef }: GroundSceneProps) {
   const layout = useMemo(() => sceneLayoutForZone(zoneId), [zoneId]);
+  const trees = useMemo(() => generateTreeSlots(layout, TREE_COUNT), [layout]);
   const severityFraction = clamp01(severity / 100);
 
-  // Computed once per zone (not re-derived from the current severity, or
-  // the camera would snap back to this spot every time the slider moves):
-  // a standing point facing the scar/house from the opposite side of
-  // structureAngle, at roughly eye height above the (pre-clearing) ground.
-  const initialCameraPosition = useMemo((): [number, number, number] => {
-    const standDistance = 11;
-    const standAngle = layout.structureAngle + Math.PI;
-    const x = layout.scarCenter.x + Math.cos(standAngle) * standDistance;
-    const z = layout.scarCenter.z + Math.sin(standAngle) * standDistance;
-    const y = baseHeight(x, z, layout) + 2.1;
-    return [x, y, z];
+  // Only the first-frame camera position: PlayerController owns it after
+  // that. Computed once per layout so slider moves never reset the player.
+  const initialCamera = useMemo((): [number, number, number] => {
+    const { x, z } = layout.spawn;
+    return [x, terrainHeight(x, z, layout, 0) + EYE_HEIGHT, z];
   }, [layout]);
 
   return (
     <Canvas
       shadows={false}
       dpr={[1, 1.75]}
-      camera={{ fov: 55, near: 0.1, far: 120, position: initialCameraPosition }}
+      camera={{ fov: 65, near: 0.1, far: 400, position: initialCamera }}
       className="h-full w-full"
     >
-      <color attach="background" args={[PALETTE.riverLight]} />
-      <fog attach="fog" args={[PALETTE.riverLight, 20, 58]} />
-      <hemisphereLight args={[PALETTE.riverLight, PALETTE.well, 0.65]} />
-      <directionalLight position={[18, 22, 10]} intensity={1.1} />
-      <TerrainMesh layout={layout} severityFraction={severityFraction} />
-      <TreeField layout={layout} severityFraction={severityFraction} />
-      <ClearingPatches layout={layout} severityFraction={severityFraction} />
-      <RoadAndHouse layout={layout} severityFraction={severityFraction} />
-      <CameraRig layout={layout} reducedMotion={reducedMotion} />
+      <color attach="background" args={[SKY_COLOR]} />
+      <fog attach="fog" args={[SKY_COLOR, 40, 170]} />
+      <hemisphereLight args={[SKY_COLOR, "#7d8a5c", 0.95]} />
+      <directionalLight position={[60, 90, 35]} intensity={1.2} />
+      <Terrain layout={layout} severityFraction={severityFraction} />
+      <Forest layout={layout} trees={trees} severityFraction={severityFraction} />
+      <Settlement layout={layout} severityFraction={severityFraction} />
+      <PlayerController
+        layout={layout}
+        trees={trees}
+        severityFraction={severityFraction}
+        inputRef={inputRef}
+        reducedMotion={reducedMotion}
+      />
     </Canvas>
-  );
-}
-
-function TerrainMesh({
-  layout,
-  severityFraction,
-}: {
-  layout: SceneLayout;
-  severityFraction: number;
-}) {
-  const geometry = useMemo(() => {
-    const segments = 56;
-    const size = layout.halfSize * 2;
-    const geo = new THREE.PlaneGeometry(size, size, segments, segments);
-    geo.rotateX(-Math.PI / 2);
-    const position = geo.attributes.position;
-    for (let i = 0; i < position.count; i++) {
-      const x = position.getX(i);
-      const z = position.getZ(i);
-      position.setY(i, terrainHeight(x, z, layout, severityFraction));
-    }
-    geo.computeVertexNormals();
-    return geo;
-  }, [layout, severityFraction]);
-
-  return (
-    <mesh geometry={geometry} receiveShadow={false}>
-      <meshStandardMaterial color={PALETTE.well} roughness={1} />
-    </mesh>
-  );
-}
-
-function TreeField({
-  layout,
-  severityFraction,
-}: {
-  layout: SceneLayout;
-  severityFraction: number;
-}) {
-  const canopyRef = useRef<THREE.InstancedMesh>(null);
-  const trunkRef = useRef<THREE.InstancedMesh>(null);
-  const slots = useMemo(() => generateTreeSlots(layout, TREE_COUNT), [layout]);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-
-  useEffect(() => {
-    const canopy = canopyRef.current;
-    const trunk = trunkRef.current;
-    if (!canopy || !trunk) return;
-
-    slots.forEach((slot, index) => {
-      const visibility = treeVisibility(slot.clearRank, severityFraction);
-      const scale = slot.baseScale * visibility;
-      const groundY = terrainHeight(slot.x, slot.z, layout, severityFraction);
-
-      dummy.position.set(slot.x, groundY + 0.9 * scale, slot.z);
-      dummy.rotation.set(0, slot.rotationY, 0);
-      dummy.scale.set(scale, scale, scale);
-      dummy.updateMatrix();
-      canopy.setMatrixAt(index, dummy.matrix);
-
-      dummy.position.set(slot.x, groundY + 0.35 * scale, slot.z);
-      dummy.scale.set(scale * 0.35, scale * 0.7, scale * 0.35);
-      dummy.updateMatrix();
-      trunk.setMatrixAt(index, dummy.matrix);
-    });
-
-    canopy.instanceMatrix.needsUpdate = true;
-    trunk.instanceMatrix.needsUpdate = true;
-  }, [slots, severityFraction, layout, dummy]);
-
-  return (
-    <>
-      <instancedMesh ref={trunkRef} args={[undefined, undefined, slots.length]} frustumCulled={false}>
-        <cylinderGeometry args={[0.1, 0.15, 1, 5]} />
-        <meshStandardMaterial color={PALETTE.inkSubtle} roughness={0.95} />
-      </instancedMesh>
-      <instancedMesh ref={canopyRef} args={[undefined, undefined, slots.length]} frustumCulled={false}>
-        <coneGeometry args={[0.85, 1.8, 7]} />
-        <meshStandardMaterial color={PALETTE.ok} roughness={0.85} />
-      </instancedMesh>
-    </>
-  );
-}
-
-function ClearingPatches({
-  layout,
-  severityFraction,
-}: {
-  layout: SceneLayout;
-  severityFraction: number;
-}) {
-  const slots = useMemo(() => generatePatchSlots(layout, PATCH_COUNT), [layout]);
-  const activeCount = Math.round(
-    smoothstep(severityFraction, 0.25, 0.9) * slots.length,
-  );
-  const band = severityToBand(severityFraction * 100).band;
-  const color = SEVERITY_FILL[band];
-
-  return (
-    <>
-      {slots.slice(0, activeCount).map((slot, index) => {
-        const y = terrainHeight(slot.x, slot.z, layout, severityFraction) + 0.02;
-        return (
-          <mesh key={index} position={[slot.x, y, slot.z]} rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[slot.radius, 10]} />
-            <meshStandardMaterial color={color} roughness={1} />
-          </mesh>
-        );
-      })}
-    </>
-  );
-}
-
-function RoadAndHouse({
-  layout,
-  severityFraction,
-}: {
-  layout: SceneLayout;
-  severityFraction: number;
-}) {
-  const appear = smoothstep(severityFraction, 0.55, 1);
-  if (appear <= 0.01) return null;
-
-  const scarY = terrainHeight(layout.scarCenter.x, layout.scarCenter.z, layout, severityFraction);
-  const facingAngle = layout.structureAngle;
-  // Angled off the house-facing direction (which the default camera looks
-  // straight down), so the road reads as a band crossing the view instead
-  // of a line receding edge-on into the distance.
-  const roadAngle = facingAngle + 0.55;
-  const houseOffset = 2.4;
-  const houseX = layout.scarCenter.x + Math.cos(facingAngle) * houseOffset;
-  const houseZ = layout.scarCenter.z + Math.sin(facingAngle) * houseOffset;
-  const houseY = terrainHeight(houseX, houseZ, layout, severityFraction);
-
-  // Each piece's own anchor position lives on an unscaled group: scaling a
-  // group also scales its children's *local* position offsets, and that
-  // offset here is the real scarCenter/house world coordinate, not a small
-  // local nudge. Scaling that group previously dragged the road and house
-  // toward world origin (0,0,0) instead of shrinking them in place, which is
-  // why they were effectively never where the camera was looking. `appear`
-  // is applied only inside each anchor, where it scales the piece's own
-  // footprint/height around its own base, not its position.
-  return (
-    <>
-      <group position={[layout.scarCenter.x, scarY + 0.06, layout.scarCenter.z]} rotation={[0, roadAngle, 0]}>
-        <mesh scale={[appear, 1, appear]}>
-          <boxGeometry args={[3.4, 0.12, 9]} />
-          <meshStandardMaterial color={PALETTE.ink} roughness={0.9} />
-        </mesh>
-      </group>
-
-      <group position={[houseX, houseY, houseZ]} rotation={[0, -facingAngle, 0]} scale={[appear, appear, appear]}>
-        <mesh position={[0, 0.72, 0]}>
-          <boxGeometry args={[2.4, 1.45, 1.9]} />
-          <meshStandardMaterial color={PALETTE.paperMuted} roughness={0.9} />
-        </mesh>
-        <mesh position={[0, 1.72, 0]} rotation={[0, Math.PI / 4, 0]}>
-          <coneGeometry args={[1.75, 1, 4]} />
-          <meshStandardMaterial color={PALETTE.ink} roughness={0.8} />
-        </mesh>
-      </group>
-    </>
-  );
-}
-
-/** Free look-around camera: drag to orbit/zoom around the scar, the point
- *  of the scene, with no panning away from it (matches the user's own
- *  framing: "I will slide that and see... viewing everything on my own,"
- *  not a scripted flythrough). Distance and polar angle are both
- *  constrained so a visitor can't zoom through the ground or flip to a
- *  bird's-eye view that defeats the "standing here" feeling. */
-function CameraRig({
-  layout,
-  reducedMotion,
-}: {
-  layout: SceneLayout;
-  reducedMotion: boolean;
-}) {
-  const targetY = baseHeight(layout.scarCenter.x, layout.scarCenter.z, layout) * 0.15 + 0.5;
-  return (
-    <OrbitControls
-      target={[layout.scarCenter.x, targetY, layout.scarCenter.z]}
-      enablePan={false}
-      enableDamping={!reducedMotion}
-      dampingFactor={0.08}
-      minDistance={4}
-      maxDistance={20}
-      minPolarAngle={0.25}
-      maxPolarAngle={1.47}
-    />
   );
 }

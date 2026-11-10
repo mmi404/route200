@@ -1,0 +1,273 @@
+import { describe, expect, it } from "vitest";
+import type { ChangeEvent } from "@/lib/types";
+import { isoToDayIndex } from "../../../_lib/severity";
+import {
+  baseHeight,
+  clearedAmount,
+  generateTreeSlots,
+  houseAppear,
+  roadAppear,
+  roadInfo,
+  roadWidth,
+  sceneLayoutForZone,
+  severityAtDay,
+  terrainHeight,
+  terrainHeightFromBase,
+  treeVisibility,
+} from "./terrain";
+
+const ZONES = ["zone-cht-teknaf", "zone-jmn-sirajganj", "zone-x", "zone-cht-bandarban"];
+
+function makeEvent(end: string, severity: number): ChangeEvent {
+  return {
+    id: `e-${end}`,
+    zoneId: "zone-a",
+    dateRangeStart: end,
+    dateRangeEnd: end,
+    areaSqKm: 1,
+    severity,
+    sourceScene: "Sentinel-1 GRD",
+    detectedAt: `${end}T00:00:00.000Z`,
+  };
+}
+
+describe("sceneLayoutForZone", () => {
+  it("is deterministic per zone id and differs between zones", () => {
+    const a = sceneLayoutForZone("zone-cht-teknaf");
+    const b = sceneLayoutForZone("zone-cht-teknaf");
+    expect(b).toEqual(a);
+    expect(sceneLayoutForZone("zone-other").scarCenter).not.toEqual(a.scarCenter);
+    for (const [x, z] of [[3, 4], [-20, 11], [40.5, -7]]) {
+      expect(baseHeight(x, z, b)).toBe(baseHeight(x, z, a));
+      expect(terrainHeight(x, z, b, 0.7)).toBe(terrainHeight(x, z, a, 0.7));
+    }
+  });
+
+  it.each(ZONES)("%s has a sane layout", (zone) => {
+    const layout = sceneLayoutForZone(zone);
+    expect(layout.walkRadius).toBeCloseTo(52, 0);
+    expect(layout.worldRadius).toBeCloseTo(120, 0);
+    const scarR = Math.hypot(layout.scarCenter.x, layout.scarCenter.z);
+    expect(scarR).toBeGreaterThanOrEqual(10);
+    expect(scarR).toBeLessThanOrEqual(18);
+    expect(roadWidth).toBeCloseTo(4.2, 1);
+
+    // Road: 20-40 samples from the rim to beside the house.
+    expect(layout.road.length).toBeGreaterThanOrEqual(20);
+    expect(layout.road.length).toBeLessThanOrEqual(40);
+    const first = layout.road[0];
+    expect(Math.hypot(first.x, first.z)).toBeGreaterThan(layout.walkRadius + 15);
+    const last = layout.road[layout.road.length - 1];
+    expect(Math.hypot(last.x - layout.house.x, last.z - layout.house.z)).toBeLessThan(9);
+  });
+
+  it.each(ZONES)("%s: spawn is walkable, in bounds, facing the scar", (zone) => {
+    const layout = sceneLayoutForZone(zone);
+    const { spawn, scarCenter } = layout;
+    const dist = Math.hypot(spawn.x - scarCenter.x, spawn.z - scarCenter.z);
+    expect(dist).toBeGreaterThanOrEqual(28);
+    expect(dist).toBeLessThanOrEqual(35);
+    expect(Math.hypot(spawn.x, spawn.z)).toBeLessThan(layout.walkRadius);
+
+    // Slope under 25 degrees, at the start and fully cleared.
+    for (const sev of [0, 1]) {
+      const e = 1;
+      const gx = (terrainHeight(spawn.x + e, spawn.z, layout, sev) - terrainHeight(spawn.x - e, spawn.z, layout, sev)) / 2;
+      const gz = (terrainHeight(spawn.x, spawn.z + e, layout, sev) - terrainHeight(spawn.x, spawn.z - e, layout, sev)) / 2;
+      expect(Math.atan(Math.hypot(gx, gz))).toBeLessThan((25 * Math.PI) / 180);
+    }
+
+    // Forward at yaw (-sin, -cos) points at the scar centre.
+    const fx = -Math.sin(spawn.yaw);
+    const fz = -Math.cos(spawn.yaw);
+    const toScar = Math.hypot(scarCenter.x - spawn.x, scarCenter.z - spawn.z);
+    expect(fx * ((scarCenter.x - spawn.x) / toScar) + fz * ((scarCenter.z - spawn.z) / toScar)).toBeGreaterThan(0.999);
+  });
+
+  it.each(ZONES)("%s: ground rises into a steep ridge past the walkable disc", (zone) => {
+    const layout = sceneLayoutForZone(zone);
+    let steepest = 0;
+    for (let a = 0; a < Math.PI * 2; a += 0.1) {
+      const inner = baseHeight(Math.cos(a) * 40, Math.sin(a) * 40, layout);
+      const rim = baseHeight(Math.cos(a) * 80, Math.sin(a) * 80, layout);
+      expect(rim - inner).toBeGreaterThan(12);
+      const r = layout.walkRadius + 8;
+      const h1 = baseHeight(Math.cos(a) * (r + 1), Math.sin(a) * (r + 1), layout);
+      const h0 = baseHeight(Math.cos(a) * (r - 1), Math.sin(a) * (r - 1), layout);
+      steepest = Math.max(steepest, Math.atan((h1 - h0) / 2));
+    }
+    // Somewhere around the ring the wall is beyond what the player can climb.
+    expect(steepest).toBeGreaterThan((38 * Math.PI) / 180);
+  });
+});
+
+describe("terrainHeight", () => {
+  it.each(ZONES.slice(0, 2))("%s: is continuous at every severity (0.5 m steps inside walkRadius)", (zone) => {
+    const layout = sceneLayoutForZone(zone);
+    const step = 0.5;
+    const n = Math.round((layout.walkRadius * 2) / step) + 1;
+    const at = (i: number) => -layout.walkRadius + i * step;
+    for (const sev of [0, 0.5, 0.83, 1]) {
+      const grid = new Float64Array(n * n);
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) grid[i * n + j] = terrainHeight(at(i), at(j), layout, sev);
+      }
+      let worst = 0;
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          if (Math.hypot(at(i), at(j)) >= layout.walkRadius) continue;
+          if (i + 1 < n && Math.hypot(at(i + 1), at(j)) < layout.walkRadius) {
+            worst = Math.max(worst, Math.abs(grid[(i + 1) * n + j] - grid[i * n + j]));
+          }
+          if (j + 1 < n && Math.hypot(at(i), at(j + 1)) < layout.walkRadius) {
+            worst = Math.max(worst, Math.abs(grid[i * n + j + 1] - grid[i * n + j]));
+          }
+        }
+      }
+      expect(worst).toBeLessThan(0.6);
+    }
+  });
+
+  it("terrainHeightFromBase agrees with terrainHeight", () => {
+    const layout = sceneLayoutForZone("zone-cht-teknaf");
+    for (const [x, z] of [[0, 0], [layout.scarCenter.x, layout.scarCenter.z], [20, -30]]) {
+      expect(terrainHeightFromBase(baseHeight(x, z, layout), x, z, layout, 0.9)).toBe(
+        terrainHeight(x, z, layout, 0.9),
+      );
+    }
+  });
+
+  it("cuts the hill down by several metres at the scar centre at full severity", () => {
+    const layout = sceneLayoutForZone("zone-cht-teknaf");
+    const { x, z } = layout.scarCenter;
+    expect(terrainHeight(x, z, layout, 0)).toBe(baseHeight(x, z, layout));
+    expect(baseHeight(x, z, layout) - terrainHeight(x, z, layout, 1)).toBeGreaterThan(3);
+  });
+
+  it("levels the road bed across its width and the pad under the house", () => {
+    const layout = sceneLayoutForZone("zone-cht-teknaf");
+    const mid = layout.road[Math.floor(layout.road.length / 3)];
+    const bed = roadInfo(mid.x, mid.z, layout).bed;
+    expect(terrainHeight(mid.x, mid.z, layout, 1)).toBeCloseTo(bed, 5);
+    const { x, z } = layout.house;
+    const a = terrainHeight(x + 2, z, layout, 1);
+    const b = terrainHeight(x - 2, z, layout, 1);
+    expect(Math.abs(a - b)).toBeLessThan(0.05);
+  });
+});
+
+describe("clearedAmount", () => {
+  it.each(ZONES)("%s: is 0 everywhere at severity 0 and ~1 at the scar centre at 1", (zone) => {
+    const layout = sceneLayoutForZone(zone);
+    for (let x = -120; x <= 120; x += 9) {
+      for (let z = -120; z <= 120; z += 9) {
+        expect(clearedAmount(x, z, layout, 0)).toBe(0);
+      }
+    }
+    expect(clearedAmount(layout.scarCenter.x, layout.scarCenter.z, layout, 1)).toBeGreaterThan(0.98);
+  });
+
+  it("grows outward irregularly and stays within 0..1", () => {
+    const layout = sceneLayoutForZone("zone-cht-teknaf");
+    const { x, z } = layout.scarCenter;
+    const radiiAt = (sev: number) => {
+      const radii: number[] = [];
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+        let r = 0;
+        while (r < 60 && clearedAmount(x + Math.cos(a) * r, z + Math.sin(a) * r, layout, sev) > 0.5) r += 0.5;
+        radii.push(r);
+      }
+      return radii;
+    };
+    // Below 0.55 the road has not appeared, so this measures the scar alone.
+    const mid = radiiAt(0.3);
+    const full = radiiAt(0.5);
+    expect(Math.max(...full)).toBeGreaterThan(Math.max(...mid));
+    expect(Math.max(...full)).toBeLessThan(layout.scarMaxRadius * 1.3);
+    expect(Math.max(...mid)).toBeGreaterThan(2);
+    expect(Math.max(...full) - Math.min(...full)).toBeGreaterThan(1);
+    for (const sev of [0.2, 0.6, 1]) {
+      const c = clearedAmount(x + 7, z - 3, layout, sev);
+      expect(c).toBeGreaterThanOrEqual(0);
+      expect(c).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it.each(ZONES)("%s: every road point inside walkRadius is cleared once the road appears", (zone) => {
+    const layout = sceneLayoutForZone(zone);
+    for (const p of layout.road) {
+      if (Math.hypot(p.x, p.z) >= layout.walkRadius) continue;
+      expect(clearedAmount(p.x, p.z, layout, 0.83)).toBeGreaterThan(0.97);
+    }
+  });
+});
+
+describe("appear curves", () => {
+  it("road and house are absent below 0.55 and fully present at the real max of 0.83", () => {
+    expect(roadAppear(0.5)).toBe(0);
+    expect(houseAppear(0.5)).toBe(0);
+    expect(roadAppear(0.83)).toBe(1);
+    expect(houseAppear(0.83)).toBe(1);
+    expect(roadAppear(0.7)).toBeGreaterThan(0);
+    expect(roadAppear(0.7)).toBeLessThan(1);
+  });
+});
+
+describe("trees", () => {
+  const layout = sceneLayoutForZone("zone-cht-teknaf");
+  const slots = generateTreeSlots(layout, 1400);
+
+  it("scatters the requested count inside the world, denser near the walkable area", () => {
+    expect(slots).toHaveLength(1400);
+    expect(slots.every((s) => Math.hypot(s.x, s.z) <= layout.worldRadius + 1e-6)).toBe(true);
+    expect(slots.every((s) => s.variant >= 0 && s.variant <= 3 && Number.isInteger(s.variant))).toBe(true);
+    expect(slots.every((s) => s.jitter >= 0 && s.jitter <= 1)).toBe(true);
+    const inner = slots.filter((s) => Math.hypot(s.x, s.z) < layout.walkRadius + 20).length;
+    expect(inner / slots.length).toBeGreaterThan(0.6);
+    expect(generateTreeSlots(layout, 1400)).toEqual(slots);
+  });
+
+  it("are all present at severity 0, gone in the cleared scar and on the road, thinning between", () => {
+    expect(slots.every((s) => treeVisibility(s, layout, 0) === 1)).toBe(true);
+    for (const s of slots) {
+      const cleared = clearedAmount(s.x, s.z, layout, 1);
+      const v = treeVisibility(s, layout, 1);
+      if (cleared > 0.9) expect(v).toBe(0);
+      if (roadInfo(s.x, s.z, layout).dist < roadWidth / 2) expect(v).toBe(0);
+    }
+    const mid = slots.map((s) => treeVisibility(s, layout, 0.83));
+    expect(mid.some((v) => v > 0 && v < 1)).toBe(true);
+    expect(mid.filter((v) => v === 1).length).toBeGreaterThan(slots.length / 2);
+  });
+
+  it("keeps the spawn clear of trunks", () => {
+    for (const s of slots) {
+      expect(Math.hypot(s.x - layout.spawn.x, s.z - layout.spawn.z)).toBeGreaterThanOrEqual(2.5);
+    }
+  });
+});
+
+describe("severityAtDay", () => {
+  const history = [makeEvent("2026-06-25", 20), makeEvent("2026-07-25", 60), makeEvent("2026-09-26", 83)];
+  const day = (iso: string) => isoToDayIndex(iso);
+
+  it("is 0 before the lead-in and ramps up to the first reading", () => {
+    expect(severityAtDay([], day("2026-06-25"))).toBe(0);
+    expect(severityAtDay(history, day("2026-06-25") - 20)).toBe(0);
+    expect(severityAtDay(history, day("2026-06-25") - 100)).toBe(0);
+    expect(severityAtDay(history, day("2026-06-25") - 10)).toBeCloseTo(10, 5);
+    expect(severityAtDay(history, day("2026-06-25"))).toBe(20);
+  });
+
+  it("interpolates between recorded events", () => {
+    const a = day("2026-06-25");
+    const b = day("2026-07-25");
+    expect(severityAtDay(history, (a + b) / 2)).toBeCloseTo(40, 5);
+    expect(severityAtDay(history, b)).toBe(60);
+  });
+
+  it("stays flat at the latest reading after the last event", () => {
+    expect(severityAtDay(history, day("2026-09-26"))).toBe(83);
+    expect(severityAtDay(history, day("2027-03-01"))).toBe(83);
+  });
+});

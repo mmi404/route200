@@ -593,9 +593,13 @@ export const translations = {
       en: "Growing the terrain…",
       bn: "ভূখণ্ড তৈরি হচ্ছে…",
     },
-    dragHint: {
-      en: "Drag to look around",
-      bn: "চারপাশ দেখতে টেনে ধরুন",
+    walkPrompt: {
+      en: "Click to walk",
+      bn: "হাঁটতে ক্লিক করুন",
+    },
+    controlsHint: {
+      en: "W A S D to walk, mouse to look, Shift to run, Q / E to move through time, Esc to release the mouse",
+      bn: "W A S D চেপে হাঁটুন, মাউস দিয়ে চারপাশ দেখুন, Shift চেপে দৌড়ান, Q / E দিয়ে সময়ে এগোন বা পিছোন, মাউস ছাড়তে Esc চাপুন",
     },
     // {name} is the zone's display name, already locale-resolved.
     caption: {

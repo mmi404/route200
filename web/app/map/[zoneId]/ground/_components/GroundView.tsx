@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { prefersReducedMotion } from "@/lib/design-tokens";
 import { format, t, zoneDisplayName } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { translations } from "@/lib/translations";
 import { useMapData } from "../../../_lib/useMapData";
-import { isoToDayIndex, zoneEventHistory } from "../../../_lib/severity";
+import { dateRangeOfEvents, isoToDayIndex, zoneEventHistory } from "../../../_lib/severity";
 import { ExploreScrubber } from "../../_components/ExploreScrubber";
 import { GroundScene } from "./GroundScene";
 import { severityAtDay } from "../_lib/terrain";
+import { useWalkInput } from "./useWalkInput";
 
 type GroundViewProps = {
   zoneId: string;
@@ -46,6 +47,25 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
   const day = selectedDay ?? defaultDay;
   const severity = useMemo(() => severityAtDay(history, day), [history, day]);
 
+  const dayRange = useMemo(() => {
+    const bounds = dateRangeOfEvents(history);
+    return { min: isoToDayIndex(bounds.low), max: isoToDayIndex(bounds.high) };
+  }, [history]);
+
+  // Q / E (and [ / ]) step time by about 1/60 of the slider's range.
+  const stepTime = useCallback(
+    (direction: -1 | 1) => {
+      if (history.length === 0) return;
+      const step = Math.max(1, Math.round((dayRange.max - dayRange.min) / 60));
+      setSelectedDay((current) => {
+        const from = current ?? defaultDay;
+        return Math.min(dayRange.max, Math.max(dayRange.min, from + direction * step));
+      });
+    },
+    [history.length, dayRange, defaultDay],
+  );
+  const { hostRef, inputRef, locked, interacted } = useWalkInput({ onStepTime: stepTime });
+
   if (error) {
     return (
       <GroundMessage locale={locale}>
@@ -70,14 +90,31 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
 
   return (
     <div className="relative h-[calc(100dvh-var(--spacing-header))] overflow-hidden bg-ink">
-      <GroundScene zoneId={zoneId} severity={severity} reducedMotion={reducedMotion} />
+      {/* The host owns the canvas's pointer events: pointer lock is only
+          requested from clicks here, never from the HUD cards below. */}
+      <div ref={hostRef} className="absolute inset-0 touch-none">
+        <GroundScene
+          zoneId={zoneId}
+          severity={severity}
+          reducedMotion={reducedMotion}
+          inputRef={inputRef}
+        />
+      </div>
+
+      {!locked && !interacted && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+          <p className="type-small rounded-xs bg-ink/60 px-4 py-2 text-paper">
+            {t(translations.groundView.walkPrompt, locale)}
+          </p>
+        </div>
+      )}
 
       <div className="absolute left-4 top-4 z-10 flex max-w-[calc(100%-2rem)] flex-col gap-2 rounded-xs bg-surface/95 px-4 py-3 shadow-map">
         <Link href={`/map/${zoneId}`} className="type-small self-start text-ink-muted hover:text-river">
           {t(translations.zoneExplore.backToMap, locale)}
         </Link>
         <h1 className="type-h3">{name}</h1>
-        <p className="type-meta text-ink-subtle">{t(translations.groundView.dragHint, locale)}</p>
+        <p className="type-meta text-ink-subtle">{t(translations.groundView.controlsHint, locale)}</p>
       </div>
 
       <div className="absolute inset-x-4 bottom-10 z-10 flex flex-col gap-3 rounded-xs bg-surface/95 px-4 py-4 shadow-map sm:bottom-4 sm:mx-auto sm:max-w-xl">
