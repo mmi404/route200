@@ -185,8 +185,36 @@ User reviewed phase 2's `/map/[zoneId]` live and liked it, but said it's "just c
 
 **Module plan (phase 3)**:
 - [x] **P1 — Single-zone prototype**: `/map/[zoneId]/ground`, the full pipeline (terrain, scatter, state-by-slider, free camera), proving the concept end to end. See session log below.
-- [ ] **P2 — User review checkpoint**: show the user, get a direction call (keep/refine/drop) before P3.
-- [ ] **P3 — Expand to all zones + wire entry point + QA**, only after P2 approval.
+- [x] **P2: User review checkpoint**: done 2026-11-10. Direction kept, with a clear verdict on the prototype: it only circles one spot, some camera angles are broken, and the materials look flat and unreal. See "Walkable rebuild" below.
+- [x] **P2a: Walkable world and movement** (branch `ground-view-walkable`).
+- [x] **P2b: Ground shading, sky and lighting**.
+- [x] **P2c: Jungle, homestead and road furniture**.
+- [ ] **P2d: Touch controls, HUD and low-power tier**.
+- [ ] **P2e: QA pass** (`tsc`, `eslint`, `vitest`, `next build`, live walk-through on desktop and phone widths).
+- [ ] **P3: Expand to the other 11 zones**, deliberately deferred. The code is already generic over zone id (everything is seeded from the id and the zone's own event history), but only `zone-cht-teknaf` has been looked at, and erosion-kind (Jamuna) zones still need their own river story instead of the hill-cut one.
+
+**Walkable rebuild (2026-11-10, branch `ground-view-walkable` off `ground-view-prototype`)**
+
+User tested the P1 prototype hands-on and reported: "we cant walk past the ground, it just circle round and round", some orbit angles collapse the hill into an unreadable sliver, and every surface is one flat color (the clearing reused the 2D map's wine-red severity fill, which reads as a wound, not dirt). Goal restated in their words: "like I am walking into a jungle, but time to time it became a road, or house... maybe there was a hill, now no hill... I want to create this reality like games based on the data." Still explicitly illustrative, still one zone (`zone-cht-teknaf`).
+
+Decisions (these replace the P1 camera and visual-style decisions above where they conflict):
+- **Camera is a first-person walker, not an orbit.** W A S D or arrows to walk, mouse look through pointer lock with drag-to-look as the fallback, Shift to run, Q / E (or [ / ]) to step through time while walking. `OrbitControls` is gone. Pitch is clamped and the eye is always 1.7 m above the ground, so no degenerate view is reachable.
+- **World is in metres.** 52 m walkable radius inside 120 m of terrain. The boundary is an encircling ridge too steep to climb (uphill speed falls with slope and stops past 38 degrees), with a soft outward damping near the edge as a backstop. No invisible wall.
+- **One mask drives the change.** `clearedAmount(x, z, layout, severityFraction)` in `_lib/terrain.ts` feeds the terrain cut, the ground shader, tree and undergrowth removal, stumps and logs, so every layer agrees about what is cleared. `severityAtDay()` is unchanged and is still the only source of severity.
+- **Movement is a pure function.** `_lib/player.ts` `stepPlayer(state, input, dt, world)` has no React or three.js in it and is unit tested. `PlayerController.tsx` only feeds it input, ground height at the current severity, and nearby obstacle circles.
+- **Scene has its own palette.** `_lib/look.ts` (`LOOK`, `SUN_DIRECTION`) is the single art-direction source for ground, foliage, wood, road, house, sky and light. The scene no longer imports `SEVERITY_FILL` or the UI palette: those are tuned for flat legends, not lit soil.
+- **Road is painted on the terrain**, not a separate mesh (the terrain is levelled along a seeded centerline and the ground shader draws packed dirt, wheel tracks and damp edges). This removes the ribbon z-fighting class of bug entirely.
+- **Still no assets.** Every tree, plant, stump, house part and pole is a BufferGeometry generated in code with baked vertex color; all ground and sky detail is shader noise.
+- **Dev-only QA hook.** In non-production builds `window.__groundDebug` exposes the player's live position, yaw, pitch and ground height so automated checks can assert on real movement. It is never set in production.
+
+What was built, by commit:
+- `def43f9`, `d2aa79f` (P2a): `_lib/player.ts` + tests, the terrain rework (ridge, hill, cut terrace, road bed, house pad, spawn selection), `useWalkInput.ts`, `PlayerController.tsx`, and the scene split into `_components/scene/`.
+- `11ec22d`, `caaa902` (P2b): `look.ts`; `scene/Terrain.tsx` as one tensor grid (1 m cells inside 72 m, widening outward, with a skirt that falls away behind the ridge) under a Lambert material whose albedo is replaced by world-space noise: forest floor with moss, litter and canopy dapple, brown and tan cleared soil with darker cut faces, rills and pebbles, a noise-broken grass and soil edge. `scene/Atmosphere.tsx`: gradient sky dome with sun glow and cloud bands, `FogExp2` matched to the horizon color, three hazed far ridge rings, warm sun plus cool hemisphere fill under ACES tone mapping.
+- `5fa9152` (P2c): four species (buttressed canopy tree, forked mid-storey tree, palm, bamboo clump) in three levels of detail, an understorey of ferns, shrubs, grass tufts, paddle-leaf plants and saplings, far-slope trees for the skyline. A cleared tree topples and leaves a stump with a pale cut top; felled logs lie in the opened ground.
+- `2007632` (P2c): the homestead (plinth, timber frame, plank walls, shuttered windows, corrugated tin gable roof, veranda, then fence, cowshed, banana plants, log stack, washing line), built in stages from sub-ranges of `houseAppear` so it reads as construction. Utility poles with wires and marker stones along the road.
+- `3505fbd`: homestead and pole collision wired into `PlayerController`; `quality` and `reducedMotion` forwarded to `Forest`.
+
+Verified by the orchestrator directly (not from subagent reports), with a headless Chrome harness driving the running dev server on :3000: `tsc --noEmit`, `eslint app lib` and `vitest run` (119 tests) clean after each piece. Holding W moves the player (position read from `__groundDebug`) with the eye staying 1.7 m above the ground; drag-look turns the view; the slider at its first day shows unbroken layered jungle, and at its last day the same walk leads out onto tan cut soil with stumps and logs, the dirt road with wheel tracks, utility poles, and the finished homestead; a mid-range day shows the forest edge receding. Measured 60 fps at 1280x760 on this machine's integrated AMD GPU in the dense forest view. Known and accepted: no real-time shadows (grounding comes from Lambert shading and painted canopy dapple); because the zone's recorded severity jumps from 20 to 68 between its first two events, the house's construction stages pass within a narrow band of the slider.
 
 **Session log (phase 3)**:
 - **2026-11-07** — Branch created, plan written above. Starting P1 prototype now.
