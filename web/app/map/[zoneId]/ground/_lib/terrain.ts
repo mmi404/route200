@@ -13,7 +13,7 @@
  */
 import type { ChangeEvent } from "@/lib/types";
 import { isoToDayIndex } from "../../../_lib/severity";
-import { sampleGrid, type RealTerrain } from "./realTerrain";
+import { sampleGrid, type Grid, type RealTerrain } from "./realTerrain";
 
 /** FNV-1a style string hash, deterministic across runs and platforms. */
 export function hashSeed(input: string): number {
@@ -559,13 +559,33 @@ export interface TreeSlot {
   jitter: number;
 }
 
+function meanGridValue(grid: Grid): number {
+  let sum = 0;
+  for (let i = 0; i < grid.values.length; i++) sum += grid.values[i];
+  return grid.values.length > 0 ? sum / grid.values.length : 0;
+}
+
+/** How much a real density grid's overall level, not just its spatial
+ *  shape, should scale a slot quota. The per-candidate rejection below
+ *  only reshapes WHERE slots land inside this one grid, and does nothing
+ *  when the grid has no spatial contrast; a density timeline sample that
+ *  reads uniformly sparse across the whole local window (the whole plot
+ *  measured as cleared, or standing water, on one real date) still needs
+ *  to reduce how much canopy appears at all, which only scaling the quota
+ *  itself achieves. */
+function realCountScale(layout: SceneLayout, floor: number): number {
+  if (!layout.realTerrain) return 1;
+  return Math.max(floor, meanGridValue(layout.realTerrain.density));
+}
+
 /** A fixed, seeded scatter across the whole world disk, denser inside
  *  walkRadius + 20 where the visitor can see it up close. */
 export function generateTreeSlots(layout: SceneLayout, count: number): TreeSlot[] {
   const rng = createRng(layout.seed + 7919);
   const inner = layout.walkRadius + 20;
+  const target = Math.round(count * realCountScale(layout, TREE_DENSITY_FLOOR));
   const slots: TreeSlot[] = [];
-  while (slots.length < count) {
+  while (slots.length < target) {
     const radius =
       rng() < 0.7
         ? inner * Math.sqrt(rng())
@@ -694,8 +714,9 @@ export function isSeverityStatic(x: number, z: number, layout: SceneLayout): boo
 export function generateDistantTreeSlots(layout: SceneLayout, count: number): TreeSlot[] {
   const rng = createRng(layout.seed + 104729);
   const inner = layout.walkRadius + 4;
+  const target = Math.round(count * realCountScale(layout, TREE_DENSITY_FLOOR));
   const slots: TreeSlot[] = [];
-  while (slots.length < count) {
+  while (slots.length < target) {
     const radius = Math.sqrt(inner * inner + rng() * (layout.worldRadius ** 2 - inner * inner));
     const angle = rng() * Math.PI * 2;
     const x = Math.cos(angle) * radius;
@@ -744,14 +765,15 @@ function pickUndergrowthKind(u: number): number {
 export function generateUndergrowthSlots(layout: SceneLayout, count: number): UndergrowthSlot[] {
   const rng = createRng(layout.seed + 31337);
   const reach = layout.walkRadius + 14;
-  const clusterCount = Math.max(8, Math.round(count / 22));
+  const target = Math.round(count * realCountScale(layout, UNDERGROWTH_DENSITY_FLOOR));
+  const clusterCount = Math.max(8, Math.round(target / 22));
   const clusters = Array.from({ length: clusterCount }, () => {
     const r = reach * Math.sqrt(rng());
     const a = rng() * Math.PI * 2;
     return { x: Math.cos(a) * r, z: Math.sin(a) * r, spread: 2.5 + rng() * 4.5, kind: pickUndergrowthKind(rng()) };
   });
   const slots: UndergrowthSlot[] = [];
-  while (slots.length < count) {
+  while (slots.length < target) {
     let x: number;
     let z: number;
     let kind: number;

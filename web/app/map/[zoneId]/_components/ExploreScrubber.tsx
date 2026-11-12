@@ -21,6 +21,11 @@ type ExploreScrubberProps = {
   /** Tighter layout for floating HUDs: the "Scrub through time" label stays
    *  for screen readers but is not drawn. */
   compact?: boolean;
+  /** Override the track's day-index bounds, e.g. to widen it past the
+   *  event history's own span to cover a real density timeline that
+   *  reaches further back. Defaults to the event history's own bounds. */
+  minDay?: number;
+  maxDay?: number;
 };
 
 // Literal class strings so Tailwind's static scan can see them (same
@@ -48,11 +53,13 @@ export function ExploreScrubber({
   onChangeAction,
   className = "",
   compact = false,
+  minDay: minDayOverride,
+  maxDay: maxDayOverride,
 }: ExploreScrubberProps) {
   const copy = translations.zoneExplore;
   const bounds = dateRangeOfEvents(history);
-  const minDay = isoToDayIndex(bounds.low);
-  const maxDay = isoToDayIndex(bounds.high);
+  const minDay = minDayOverride ?? isoToDayIndex(bounds.low);
+  const maxDay = maxDayOverride ?? isoToDayIndex(bounds.high);
   const span = Math.max(1, maxDay - minDay);
   const valuePct = ((Math.min(Math.max(day, minDay), maxDay) - minDay) / span) * 100;
 
@@ -95,7 +102,7 @@ export function ExploreScrubber({
         />
       </div>
       <div className={`type-meta flex justify-between text-ink-subtle ${compact ? "mt-1" : "mt-2"}`}>
-        <span>{formatCitationDate(bounds.low)}</span>
+        <span>{formatCitationDate(dayIndexToIso(minDay))}</span>
         <span className="font-medium text-ink">
           {format(t(copy.asOfDate, locale), { date: formatCitationDate(dayIndexToIso(day)) })}
         </span>

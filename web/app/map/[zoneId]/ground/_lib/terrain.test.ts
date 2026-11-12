@@ -73,6 +73,7 @@ function makeRealTerrainFixture(): RealTerrain {
     disturbanceComponentPx: 500,
     sarBeforeDate: "2026-05-04",
     sarAfterDate: "2026-11-05",
+    densityTimeline: [],
   };
 }
 
@@ -486,10 +487,15 @@ describe("real terrain", () => {
     expect(clearedAmount(0, 0, layout, 0)).toBe(0);
   });
 
-  it("generateTreeSlots is pulled toward the grid's denser real areas", () => {
+  it("generateTreeSlots is pulled toward the grid's denser real areas, and its total scales with mean density", () => {
     const layout = sceneLayoutForZone("zone-cht-teknaf", makeRealTerrainFixture());
     const slots = generateTreeSlots(layout, 3000);
-    expect(slots).toHaveLength(3000);
+    // The fixture's 81-node grid has 9 zero-density nodes (radius < 20) and
+    // 72 full-density ones, mean 72/81: the overall quota scales down from
+    // 3000 by that mean, on top of (not instead of) the per-position
+    // rejection below, since a grid that is uniformly sparse everywhere
+    // has nothing for the per-position rejection alone to reduce.
+    expect(slots).toHaveLength(Math.round(3000 * (72 / 81)));
     expect(generateTreeSlots(layout, 3000)).toEqual(slots); // still deterministic
     const nearFraction = slots.filter((s) => Math.hypot(s.x, s.z) < 18).length / slots.length;
     // Sampling is area-uniform inside the walkable disc's near band, so with
@@ -497,6 +503,22 @@ describe("real terrain", () => {
     // within radius 18. The fixture's density there is 0 (below the 0.08
     // floor only), so the real fraction should sit well under that.
     expect(nearFraction).toBeLessThan(0.03);
+  });
+
+  it("generateTreeSlots' total also drops when density is uniformly low, not just spatially varying", () => {
+    // A real density timeline sample can read sparse across the *whole*
+    // local window (e.g. the reference point measured as cleared or
+    // flooded on one real date), with no spatial contrast for the
+    // per-position rejection above to redistribute around. Only scaling
+    // the quota itself catches that case.
+    const base = makeRealTerrainFixture();
+    const flooded = {
+      ...base,
+      density: { ...base.density, values: new Float32Array(base.density.values.length).fill(0.1) },
+    };
+    const layout = sceneLayoutForZone("zone-cht-teknaf", flooded);
+    const slots = generateTreeSlots(layout, 3000);
+    expect(slots).toHaveLength(300); // 3000 * max(0.08 floor, 0.1 mean density)
   });
 
   it("generateUndergrowthSlots is also pulled toward the denser real areas", () => {

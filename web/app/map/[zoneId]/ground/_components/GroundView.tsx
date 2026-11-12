@@ -10,12 +10,12 @@ import type { Locale } from "@/lib/locale";
 import { translations } from "@/lib/translations";
 import { severityToBand } from "@/lib/types";
 import { useMapData } from "../../../_lib/useMapData";
-import { dateRangeOfEvents, isoToDayIndex, zoneEventHistory } from "../../../_lib/severity";
+import { dateRangeOfEvents, dayIndexToIso, isoToDayIndex, zoneEventHistory } from "../../../_lib/severity";
 import { ExploreScrubber } from "../../_components/ExploreScrubber";
 import { GroundBoundary } from "./GroundBoundary";
 import { ControlsLegend, ControlsToggle, JoystickLayer, SeverityReadout } from "./GroundHud";
 import { GroundScene } from "./GroundScene";
-import type { RealTerrain } from "../_lib/realTerrain";
+import { densityTimelineRange, nearestDensitySample, type RealTerrain } from "../_lib/realTerrain";
 import { severityAtDay, type RealDataStop } from "../_lib/terrain";
 import { useCoarsePointer, useGroundQuality } from "./useDeviceProfile";
 import { useRealTerrain } from "./useRealTerrain";
@@ -98,10 +98,41 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
   // lets React drop intermediate values the scene has no time to draw.
   const sceneSeverity = useDeferredValue(severity);
 
+  // A zone with a real density timeline (Teknaf) can reach much further
+  // back than its recorded severity events: widen the scrubbable range to
+  // cover it, so a visitor can scrub back and watch the real forest cover
+  // decline for decades before the recorded disaster, not just within it.
+  const timelineRange = useMemo(
+    () => (realTerrain ? densityTimelineRange(realTerrain.densityTimeline) : null),
+    [realTerrain],
+  );
   const dayRange = useMemo(() => {
     const bounds = dateRangeOfEvents(history);
-    return { min: isoToDayIndex(bounds.low), max: isoToDayIndex(bounds.high) };
-  }, [history]);
+    let low = bounds.low;
+    let high = bounds.high;
+    if (timelineRange) {
+      if (timelineRange.minIso < low) low = timelineRange.minIso;
+      if (timelineRange.maxIso > high) high = timelineRange.maxIso;
+    }
+    return { min: isoToDayIndex(low), max: isoToDayIndex(high) };
+  }, [history, timelineRange]);
+
+  // Real density samples are discrete satellite scenes, not a continuous
+  // signal: snap to the nearest real one rather than inventing values
+  // between them, so every rendered frame is still a real measurement.
+  const activeDensitySample = useMemo(
+    () => (realTerrain ? nearestDensitySample(realTerrain.densityTimeline, dayIndexToIso(day)) : null),
+    [realTerrain, day],
+  );
+  // Only this object's identity changes when the scrubbed day crosses into
+  // a different real sample, which is what GroundScene's layout memo keys
+  // on: the forest only regenerates when there is a real new density to
+  // regenerate it from, not on every slider pixel.
+  const resolvedRealTerrain = useMemo(() => {
+    if (!realTerrain) return null;
+    if (!activeDensitySample) return realTerrain;
+    return { ...realTerrain, density: activeDensitySample.grid };
+  }, [realTerrain, activeDensitySample]);
 
   // Q / E (and [ / ]) step time by about 1/60 of the slider's range.
   const stepTime = useCallback(
@@ -199,7 +230,7 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
             inputRef={inputRef}
             quality={quality}
             onContextFailed={onContextFailed}
-            realTerrain={realTerrain}
+            realTerrain={resolvedRealTerrain}
             onNearStopChange={setNearStop}
           />
         </div>
@@ -247,6 +278,14 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
           {history.length > 0 && (
             <SeverityReadout locale={locale} band={severityToBand(severity).band} recorded={recorded} />
           )}
+          {activeDensitySample && (
+            <div className="flex flex-col gap-0.5 rounded-xs bg-surface/95 px-3 py-2 shadow-map">
+              <span className="type-meta text-ink-subtle">{t(copy.densityReadoutLabel, locale)}</span>
+              <span className="type-meta font-medium text-ink">
+                {formatCitationDate(activeDensitySample.date)}
+              </span>
+            </div>
+          )}
           <ControlsToggle locale={locale} pressed={legendVisible} onToggle={toggleLegend} />
         </div>
 
@@ -287,6 +326,8 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
                 history={history}
                 day={day}
                 onChangeAction={setSelectedDay}
+                minDay={dayRange.min}
+                maxDay={dayRange.max}
                 compact
               />
             )}

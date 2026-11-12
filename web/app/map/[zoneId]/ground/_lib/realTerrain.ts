@@ -59,8 +59,18 @@ function clamp(value: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, value));
 }
 
+/** One real satellite-measured tree/vegetation-density grid, dated to the
+ *  real scene it was read from (build_ground_density_timeline.py). */
+export interface DensitySample {
+  date: string;
+  grid: Grid;
+}
+
 export interface RealTerrain {
   heights: Grid;
+  /** The most recent real density sample, used when no timeline-aware
+   *  caller has picked a specific date (e.g. a zone with a timeline but a
+   *  caller that hasn't resolved one yet). */
   density: Grid;
   disturbance: Grid;
   referenceElevationM: number;
@@ -70,6 +80,47 @@ export interface RealTerrain {
   disturbanceComponentPx: number;
   sarBeforeDate: string;
   sarAfterDate: string;
+  /** Real density samples across history, oldest first, empty when this
+   *  zone has no timeline pack (build_ground_density_timeline.py hasn't
+   *  been run for it, or every target date failed). */
+  densityTimeline: DensitySample[];
+}
+
+/** The real sample closest to the given ISO date, or null if the timeline
+ *  is empty. Snaps to the nearest real measurement rather than
+ *  interpolating between two real dates, so every rendered frame is
+ *  traceable to one real satellite scene, not a fabricated in-between. */
+export function nearestDensitySample(
+  timeline: readonly DensitySample[],
+  iso: string,
+): DensitySample | null {
+  if (timeline.length === 0) return null;
+  const target = Date.parse(`${iso}T00:00:00.000Z`);
+  let best = timeline[0];
+  let bestDiff = Math.abs(Date.parse(`${best.date}T00:00:00.000Z`) - target);
+  for (const sample of timeline) {
+    const diff = Math.abs(Date.parse(`${sample.date}T00:00:00.000Z`) - target);
+    if (diff < bestDiff) {
+      best = sample;
+      bestDiff = diff;
+    }
+  }
+  return best;
+}
+
+/** The real date span a density timeline covers, or null when empty, for
+ *  widening the Ground View time slider to the zone's full real history. */
+export function densityTimelineRange(
+  timeline: readonly DensitySample[],
+): { minIso: string; maxIso: string } | null {
+  if (timeline.length === 0) return null;
+  let minIso = timeline[0].date;
+  let maxIso = timeline[0].date;
+  for (const sample of timeline) {
+    if (sample.date < minIso) minIso = sample.date;
+    if (sample.date > maxIso) maxIso = sample.date;
+  }
+  return { minIso, maxIso };
 }
 
 interface GroundDataMeta {
@@ -83,7 +134,15 @@ interface GroundDataMeta {
   >;
 }
 
-function toGrid(meta: GroundDataMeta["grids"][keyof GroundDataMeta["grids"]], buffer: ArrayBuffer): Grid {
+interface GridMeta {
+  width: number;
+  height: number;
+  cellSize: number;
+  originX: number;
+  originZ: number;
+}
+
+function toGrid(meta: GridMeta, buffer: ArrayBuffer): Grid {
   return {
     width: meta.width,
     height: meta.height,
@@ -94,17 +153,46 @@ function toGrid(meta: GroundDataMeta["grids"][keyof GroundDataMeta["grids"]], bu
   };
 }
 
+interface DensityTimelineManifest {
+  grid: GridMeta;
+  samples: { actual_date: string; file: string }[];
+}
+
+/** Fetches a zone's real density timeline (build_ground_density_timeline.py),
+ *  or an empty array if it has none, or if the manifest fails to load: a
+ *  single static density snapshot is still a complete, honest scene. */
+async function loadDensityTimeline(base: string): Promise<DensitySample[]> {
+  let manifest: DensityTimelineManifest;
+  try {
+    const res = await fetch(`${base}/density_timeline.json`);
+    if (!res.ok) return [];
+    manifest = await res.json();
+  } catch {
+    return [];
+  }
+  const buffers = await Promise.all(
+    manifest.samples.map((sample) => fetch(`${base}/${sample.file}`).then((r) => r.arrayBuffer())),
+  );
+  const samples = manifest.samples.map((sample, i) => ({
+    date: sample.actual_date,
+    grid: toGrid(manifest.grid, buffers[i]),
+  }));
+  samples.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return samples;
+}
+
 /** Fetches the real terrain grids for a zone, or resolves to `null`
  *  immediately (no request made) for any zone without one. */
 export async function loadRealTerrain(zoneId: string): Promise<RealTerrain | null> {
   if (!hasRealTerrain(zoneId)) return null;
   const base = `/ground-data/${SLUG_BY_ZONE_ID[zoneId]}`;
   const meta: GroundDataMeta = await fetch(`${base}/meta.json`).then((r) => r.json());
-  const [heights, density, disturbance] = await Promise.all(
-    (["heightmap", "density", "disturbance"] as const).map((key) =>
-      fetch(`${base}/${meta.grids[key].file}`).then((r) => r.arrayBuffer()),
-    ),
-  );
+  const [heights, density, disturbance, densityTimeline] = await Promise.all([
+    fetch(`${base}/${meta.grids.heightmap.file}`).then((r) => r.arrayBuffer()),
+    fetch(`${base}/${meta.grids.density.file}`).then((r) => r.arrayBuffer()),
+    fetch(`${base}/${meta.grids.disturbance.file}`).then((r) => r.arrayBuffer()),
+    loadDensityTimeline(base),
+  ]);
   return {
     heights: toGrid(meta.grids.heightmap, heights),
     density: toGrid(meta.grids.density, density),
@@ -113,5 +201,6 @@ export async function loadRealTerrain(zoneId: string): Promise<RealTerrain | nul
     disturbanceComponentPx: meta.reference_disturbance_component_px,
     sarBeforeDate: meta.sar_before_date,
     sarAfterDate: meta.sar_after_date,
+    densityTimeline,
   };
 }

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { hasRealTerrain, sampleGrid, type Grid } from "./realTerrain";
+import {
+  densityTimelineRange,
+  hasRealTerrain,
+  nearestDensitySample,
+  sampleGrid,
+  type DensitySample,
+  type Grid,
+} from "./realTerrain";
 
 /** 3x3 grid, 10 m cells, centred on the origin: values rise by 1 per cell
  *  along x and 10 per cell along z, so bilinear interpolation is easy to
@@ -45,5 +52,34 @@ describe("hasRealTerrain", () => {
     expect(hasRealTerrain("zone-cht-teknaf")).toBe(true);
     expect(hasRealTerrain("zone-cht-lama")).toBe(false);
     expect(hasRealTerrain("zone-jamuna-kazipur")).toBe(false);
+  });
+});
+
+function makeSample(date: string): DensitySample {
+  return { date, grid: makeGrid() };
+}
+
+describe("nearestDensitySample", () => {
+  const timeline = [makeSample("2000-01-01"), makeSample("2020-01-01"), makeSample("2026-07-01")];
+
+  it("returns null for an empty timeline", () => {
+    expect(nearestDensitySample([], "2026-01-01")).toBeNull();
+  });
+
+  it("snaps to the nearest real sample rather than interpolating", () => {
+    expect(nearestDensitySample(timeline, "2000-01-01")).toBe(timeline[0]);
+    expect(nearestDensitySample(timeline, "2010-06-01")).toBe(timeline[1]);
+    expect(nearestDensitySample(timeline, "2026-12-31")).toBe(timeline[2]);
+  });
+});
+
+describe("densityTimelineRange", () => {
+  it("is null for an empty timeline", () => {
+    expect(densityTimelineRange([])).toBeNull();
+  });
+
+  it("spans the earliest to the latest real sample regardless of input order", () => {
+    const timeline = [makeSample("2020-01-01"), makeSample("1990-01-01"), makeSample("2026-07-01")];
+    expect(densityTimelineRange(timeline)).toEqual({ minIso: "1990-01-01", maxIso: "2026-07-01" });
   });
 });

@@ -647,6 +647,13 @@ export const translations = {
       en: "Estimated risk",
       bn: "আনুমানিক ঝুঁকি",
     },
+    // Shown only for a zone with a real density timeline (evidence/scripts/
+    // build_ground_density_timeline.py): the real satellite scene date the
+    // currently scrubbed forest cover was actually measured from.
+    densityReadoutLabel: {
+      en: "Forest cover (satellite)",
+      bn: "বন আবরণ (স্যাটেলাইট)",
+    },
     webglUnavailable: {
       en: "This device could not start the 3D view. You can still follow this zone on the map.",
       bn: "এই ডিভাইসে ৩ডি দৃশ্য চালু করা যায়নি। মানচিত্রে এই এলাকার তথ্য দেখতে পারবেন।",
@@ -660,8 +667,8 @@ export const translations = {
     // (evidence/scripts/build_ground_terrain.py), where the hill height,
     // tree cover and cleared ground are real measurements, not invented.
     captionReal: {
-      en: "A walk through {name}'s real measured terrain: hill height from satellite elevation data, tree cover from satellite land cover data, and the cleared ground from a real before/after radar comparison. The road and house are still stylized, not satellite imagery.",
-      bn: "{name}-এর প্রকৃত পরিমাপ করা ভূখণ্ড: স্যাটেলাইট উচ্চতা তথ্য থেকে পাহাড়ের উচ্চতা, স্যাটেলাইট ভূমি আবরণ তথ্য থেকে গাছের ঘনত্ব, আর প্রকৃত আগে-পরে রাডার তুলনা থেকে পরিষ্কার হওয়া জমি। রাস্তা আর বাড়ি এখনও শৈলীকৃত, এগুলো স্যাটেলাইট ছবি নয়।",
+      en: "A walk through {name}'s real measured terrain: hill height from satellite elevation data, tree cover scrubbable across decades of real satellite imagery, and the cleared ground from a real before/after radar comparison. The road and house are still stylized, not satellite imagery.",
+      bn: "{name}-এর প্রকৃত পরিমাপ করা ভূখণ্ড: স্যাটেলাইট উচ্চতা তথ্য থেকে পাহাড়ের উচ্চতা, কয়েক দশকের প্রকৃত স্যাটেলাইট চিত্র জুড়ে স্ক্রাব করা গাছের ঘনত্ব, আর প্রকৃত আগে-পরে রাডার তুলনা থেকে পরিষ্কার হওয়া জমি। রাস্তা আর বাড়ি এখনও শৈলীকৃত, এগুলো স্যাটেলাইট ছবি নয়।",
     },
     // Shown only when the visitor walks near one of a real-terrain zone's
     // fixed stops (_lib/terrain.ts realTerrainStops). {areaHa}/{before}/
