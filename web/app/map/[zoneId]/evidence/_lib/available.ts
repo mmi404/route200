@@ -9,7 +9,14 @@
  * this list and the real registry cannot drift apart without a type
  * error.
  */
-export const EVIDENCE_ZONE_IDS = ["zone-cht-teknaf"] as const;
+export const EVIDENCE_ZONE_IDS = [
+  "zone-cht-teknaf",
+  "zone-cht-bandarban-sadar",
+  "zone-cht-lama",
+  "zone-cht-naikhongchhari",
+  "zone-cht-coxsbazar-sadar",
+  "zone-cht-ukhiya",
+] as const;
 
 export type EvidenceZoneId = (typeof EVIDENCE_ZONE_IDS)[number];
 

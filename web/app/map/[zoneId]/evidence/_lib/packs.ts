@@ -1,4 +1,9 @@
 import teknafManifest from "@/public/evidence/teknaf/manifest.json";
+import bandarbanSadarManifest from "@/public/evidence/bandarban-sadar/manifest.json";
+import lamaManifest from "@/public/evidence/lama/manifest.json";
+import naikhongchhariManifest from "@/public/evidence/naikhongchhari/manifest.json";
+import coxsbazarSadarManifest from "@/public/evidence/coxsbazar-sadar/manifest.json";
+import ukhiyaManifest from "@/public/evidence/ukhiya/manifest.json";
 import type { EvidenceZoneId } from "./available";
 
 /**
@@ -24,6 +29,9 @@ export type EvidenceManifest = {
     pct_pixels_risen_gt3db: number;
     valid_pixel_count: number;
     despeckle_note: string;
+    /** Present only when the AOI itself needs a caveat (e.g. a river or
+     * estuary channel inside the crop), not a per-zone constant. */
+    coverage_note?: string;
   };
   july_event_timeline: {
     /** "YYYY-MM-DD to YYYY-MM-DD" */
@@ -60,12 +68,45 @@ export type EvidencePack = {
 // Imported as a JSON module, same as app/api/change-events/route.ts does
 // for lib/data/change-events.json. Swapping this for a fetched or
 // database-backed manifest later changes only this registry.
+const GIBS_OPTICAL_SOURCE = "NASA GIBS, VIIRS SNPP corrected reflectance (true colour)";
+const GIBS_PRECIP_SOURCE = "NASA GIBS, IMERG precipitation rate";
+
 const PACKS: Record<EvidenceZoneId, EvidencePack> = {
   "zone-cht-teknaf": {
     basePath: "/evidence/teknaf",
     manifest: teknafManifest,
-    opticalSource: "NASA GIBS, VIIRS SNPP corrected reflectance (true colour)",
-    precipSource: "NASA GIBS, IMERG precipitation rate",
+    opticalSource: GIBS_OPTICAL_SOURCE,
+    precipSource: GIBS_PRECIP_SOURCE,
+  },
+  "zone-cht-bandarban-sadar": {
+    basePath: "/evidence/bandarban-sadar",
+    manifest: bandarbanSadarManifest,
+    opticalSource: GIBS_OPTICAL_SOURCE,
+    precipSource: GIBS_PRECIP_SOURCE,
+  },
+  "zone-cht-lama": {
+    basePath: "/evidence/lama",
+    manifest: lamaManifest,
+    opticalSource: GIBS_OPTICAL_SOURCE,
+    precipSource: GIBS_PRECIP_SOURCE,
+  },
+  "zone-cht-naikhongchhari": {
+    basePath: "/evidence/naikhongchhari",
+    manifest: naikhongchhariManifest,
+    opticalSource: GIBS_OPTICAL_SOURCE,
+    precipSource: GIBS_PRECIP_SOURCE,
+  },
+  "zone-cht-coxsbazar-sadar": {
+    basePath: "/evidence/coxsbazar-sadar",
+    manifest: coxsbazarSadarManifest,
+    opticalSource: GIBS_OPTICAL_SOURCE,
+    precipSource: GIBS_PRECIP_SOURCE,
+  },
+  "zone-cht-ukhiya": {
+    basePath: "/evidence/ukhiya",
+    manifest: ukhiyaManifest,
+    opticalSource: GIBS_OPTICAL_SOURCE,
+    precipSource: GIBS_PRECIP_SOURCE,
   },
 };
 

@@ -661,7 +661,7 @@ export const translations = {
   // ---------------------------------------------------------------------
   // zoneEvidence: app/map/[zoneId]/evidence/page.tsx and _components/*.
   // The real satellite evidence page for zones that have a pack under
-  // public/evidence/ (only Teknaf so far), plus its clearly separated
+  // public/evidence/ (the six Chattogram Hill Tracts zones so far), plus its clearly separated
   // "where this goes next" concept preview. Every date and number spliced
   // into these templates comes from the pack's manifest.json, formatted
   // by the caller (formatCitationDate / formatStatNumber). Reuses
@@ -698,8 +698,8 @@ export const translations = {
       bn: "একই পাহাড়ি ঢাল, {days} দিনের ব্যবধানে",
     },
     beforeAfterBody: {
-      en: "Each image is one radar pass over Teknaf, shown as backscatter: how much of the radar's own signal bounces back. Brighter pixels return more (rough ground, dense vegetation, buildings), darker pixels return less (smooth bare soil, still water). Radar sees through cloud and works at night, so both dates are clear views of the ground.",
-      bn: "প্রতিটা ছবি টেকনাফের ওপর দিয়ে রাডারের একেকটা পাস, দেখানো হয়েছে ব্যাকস্ক্যাটার হিসেবে, অর্থাৎ রাডারের পাঠানো সংকেতের কতটুকু ফিরে আসে। যেখানে বেশি ফেরে সেখানে পিক্সেল উজ্জ্বল (এবড়োখেবড়ো মাটি, ঘন গাছপালা, ঘরবাড়ি), যেখানে কম ফেরে সেখানে গাঢ় (মসৃণ খোলা মাটি, স্থির পানি)। রাডার মেঘ ভেদ করে দেখে, রাতেও কাজ করে, তাই দুটো তারিখেই মাটির পরিষ্কার ছবি পাওয়া গেছে।",
+      en: "Each image is one radar pass over this hillside, shown as backscatter: how much of the radar's own signal bounces back. Brighter pixels return more (rough ground, dense vegetation, buildings), darker pixels return less (smooth bare soil, still water). Radar sees through cloud and works at night, so both dates are clear views of the ground.",
+      bn: "প্রতিটা ছবি এই পাহাড়ি ঢালের ওপর দিয়ে রাডারের একেকটা পাস, দেখানো হয়েছে ব্যাকস্ক্যাটার হিসেবে, অর্থাৎ রাডারের পাঠানো সংকেতের কতটুকু ফিরে আসে। যেখানে বেশি ফেরে সেখানে পিক্সেল উজ্জ্বল (এবড়োখেবড়ো মাটি, ঘন গাছপালা, ঘরবাড়ি), যেখানে কম ফেরে সেখানে গাঢ় (মসৃণ খোলা মাটি, স্থির পানি)। রাডার মেঘ ভেদ করে দেখে, রাতেও কাজ করে, তাই দুটো তারিখেই মাটির পরিষ্কার ছবি পাওয়া গেছে।",
     },
     // {date} is formatCitationDate output.
     beforeCaption: {
@@ -793,8 +793,8 @@ export const translations = {
     // {start}/{end}: the manifest's event window; {first}/{last}: the
     // daily strip's first and last dates; {passes}: number of SAR passes.
     julyBody: {
-      en: "Between {start} and {end}, monsoon rain set off landslides and flooding across the Chattogram Hill Tracts, Teknaf included. Below are the {passes} radar passes over this zone in that stretch, then the optical image and rainfall for every day from {first} to {last}.",
-      bn: "{start} থেকে {end} পর্যন্ত বর্ষার ভারী বৃষ্টিতে চট্টগ্রাম পার্বত্য অঞ্চলজুড়ে পাহাড়ধস আর বন্যা হয়, টেকনাফও তার বাইরে ছিল না। নিচে আছে সেই সময়ে এই এলাকার ওপর দিয়ে যাওয়া {passes}টি রাডার পাস, তারপর {first} থেকে {last} পর্যন্ত প্রতিদিনের অপটিক্যাল ছবি আর বৃষ্টিপাত।",
+      en: "Between {start} and {end}, monsoon rain set off landslides and flooding across the Chattogram Hill Tracts, this zone included. Below are the {passes} radar passes over this zone in that stretch, then the optical image and rainfall for every day from {first} to {last}.",
+      bn: "{start} থেকে {end} পর্যন্ত বর্ষার ভারী বৃষ্টিতে চট্টগ্রাম পার্বত্য অঞ্চলজুড়ে পাহাড়ধস আর বন্যা হয়, এই এলাকাও তার বাইরে ছিল না। নিচে আছে সেই সময়ে এই এলাকার ওপর দিয়ে যাওয়া {passes}টি রাডার পাস, তারপর {first} থেকে {last} পর্যন্ত প্রতিদিনের অপটিক্যাল ছবি আর বৃষ্টিপাত।",
     },
     radarPassesHeading: {
       en: "Radar passes",
@@ -818,8 +818,8 @@ export const translations = {
       bn: "প্রতিদিনের অপটিক্যাল ছবি আর বৃষ্টি",
     },
     dailyBody: {
-      en: "The optical row is what an ordinary camera in orbit saw: true-colour imagery from the VIIRS instrument. The rain row is NASA's IMERG precipitation rate for the same day. Both tiles cover a wider area around Cox's Bazar and Teknaf than the radar crops above. Dots mark the days a radar pass came over.",
-      bn: "অপটিক্যাল সারিতে আছে কক্ষপথের একটা সাধারণ ক্যামেরা যা দেখেছে: VIIRS যন্ত্রের আসল রঙের ছবি। বৃষ্টির সারিতে আছে একই দিনের NASA IMERG বৃষ্টিপাতের হার। ওপরের রাডারের ছবির চেয়ে এই দুই সারির ছবি কক্সবাজার আর টেকনাফের আশেপাশের আরও বড় এলাকা জুড়ে। যেদিন রাডার পাস ছিল, সেদিন একটা বিন্দু দিয়ে চিহ্নিত।",
+      en: "The optical row is what an ordinary camera in orbit saw: true-colour imagery from the VIIRS instrument. The rain row is NASA's IMERG precipitation rate for the same day. Both tiles cover a wider area around this zone than the radar crops above. Dots mark the days a radar pass came over.",
+      bn: "অপটিক্যাল সারিতে আছে কক্ষপথের একটা সাধারণ ক্যামেরা যা দেখেছে: VIIRS যন্ত্রের আসল রঙের ছবি। বৃষ্টির সারিতে আছে একই দিনের NASA IMERG বৃষ্টিপাতের হার। ওপরের রাডারের ছবির চেয়ে এই দুই সারির ছবি এই এলাকার আশেপাশের আরও বড় এলাকা জুড়ে। যেদিন রাডার পাস ছিল, সেদিন একটা বিন্দু দিয়ে চিহ্নিত।",
     },
     dailyScrollHint: {
       en: "Swipe sideways to see every day.",
@@ -988,8 +988,8 @@ export const translations = {
     },
     // {name} is this zone's display name.
     unavailableBody: {
-      en: "Real before-and-after radar evidence has been built for one zone so far. {name} will get its own once its scenes are pulled and checked. Until then this page stays empty rather than showing anything made up.",
-      bn: "এখন পর্যন্ত শুধু একটা এলাকার জন্য আগে-পরের আসল রাডার প্রমাণ তৈরি হয়েছে। {name}-এর দৃশ্যগুলো নামিয়ে যাচাই করা হলে এটারও নিজস্ব প্রমাণ আসবে। ততদিন এই পাতা ফাঁকা থাকবে, বানানো কিছু দেখানো হবে না।",
+      en: "Real before-and-after radar evidence has been built for the Chattogram Hill Tracts zones so far. {name} will get its own once its scenes are pulled and checked. Until then this page stays empty rather than showing anything made up.",
+      bn: "এখন পর্যন্ত চট্টগ্রাম পার্বত্য অঞ্চলের এলাকাগুলোর জন্য আগে-পরের আসল রাডার প্রমাণ তৈরি হয়েছে। {name}-এর দৃশ্যগুলো নামিয়ে যাচাই করা হলে এটারও নিজস্ব প্রমাণ আসবে। ততদিন এই পাতা ফাঁকা থাকবে, বানানো কিছু দেখানো হবে না।",
     },
     // {name} is the display name of a zone that does have a pack.
     unavailableSeeOther: {

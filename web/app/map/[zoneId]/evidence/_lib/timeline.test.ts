@@ -51,11 +51,12 @@ describe("despeckleWindow", () => {
 });
 
 describe("Teknaf evidence pack", () => {
-  it("is registered, and only for its own zone", () => {
+  it("is registered, and only for a Chattogram hill zone", () => {
     expect(hasEvidencePack("zone-cht-teknaf")).toBe(true);
-    expect(hasEvidencePack("zone-cht-lama")).toBe(false);
+    expect(hasEvidencePack("zone-cht-lama")).toBe(true);
+    expect(hasEvidencePack("zone-jamuna-kazipur")).toBe(false);
     expect(getEvidencePack("zone-cht-teknaf")?.manifest.zone_id).toBe("zone-cht-teknaf");
-    expect(getEvidencePack("zone-cht-lama")).toBeNull();
+    expect(getEvidencePack("zone-jamuna-kazipur")).toBeNull();
   });
 
   it("finds the real six-day optical blackout as one run", () => {

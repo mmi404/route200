@@ -197,6 +197,16 @@ export function EvidenceReport({ zoneId, pack, locale }: EvidenceReportProps) {
                 note={t(copy.thresholdNote, locale)}
                 lang={locale}
               />
+              {pair.coverage_note && (
+                <figure className="flex flex-col gap-2">
+                  <figcaption className="type-eyebrow text-ink-muted">
+                    {t(copy.manifestNoteLabel, locale)}
+                  </figcaption>
+                  <blockquote lang="en" className="type-small border-l-2 border-rule pl-4 text-ink-muted">
+                    {pair.coverage_note}
+                  </blockquote>
+                </figure>
+              )}
             </div>
           </div>
         </div>

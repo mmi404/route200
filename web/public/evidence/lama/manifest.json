@@ -1,0 +1,204 @@
+{
+  "zone_id": "zone-cht-lama",
+  "zone_name": "Lama hill slopes",
+  "generated": "2026-11-12T07:53:56+00:00",
+  "before_after": {
+    "before_date": "2026-05-04",
+    "before_scene_id": "S1A_IW_GRDH_1SDV_20260504T234811_20260504T234836_064374_081B35_rtc",
+    "after_date": "2026-11-05",
+    "after_scene_id": "S1D_IW_GRDH_1SDV_20261105T115504_20261105T115529_005332_00A26C_rtc",
+    "source": "Sentinel-1 RTC (radiometrically terrain-corrected), VV polarization, via Microsoft Planetary Computer",
+    "gap_days": 185,
+    "mean_diff_db": -0.667,
+    "pct_pixels_dropped_gt3db": 5.55,
+    "pct_pixels_risen_gt3db": 0.74,
+    "valid_pixel_count": 875760,
+    "despeckle_note": "A 15x15 median filter was applied to each date's dB image before differencing, to suppress single-look SAR speckle noise and reveal the underlying change pattern. This is a plain spatial filter (standard SAR preprocessing), not a trained model."
+  },
+  "july_event_timeline": {
+    "event_window": "2026-07-06 to 2026-07-24",
+    "event_description": "Monsoon-triggered landslide/flood disaster across Chattogram Hill Tracts",
+    "sar_passes": [
+      {
+        "date": "2026-07-08",
+        "scene_id": "S1D_IW_GRDH_1SDV_20260708T115501_20260708T115526_003582_0065DC_rtc",
+        "file": "sar_timeline/sar_2026-07-08.png"
+      },
+      {
+        "date": "2026-07-10",
+        "scene_id": "S1D_IW_GRDH_1SDV_20260710T234729_20260710T234754_003618_006723_rtc",
+        "file": "sar_timeline/sar_2026-07-10.png"
+      },
+      {
+        "date": "2026-07-16",
+        "scene_id": "S1C_IW_GRDH_1SDV_20260716T234710_20260716T234735_008575_010FBA_rtc",
+        "file": "sar_timeline/sar_2026-07-16.png"
+      },
+      {
+        "date": "2026-07-20",
+        "scene_id": "S1D_IW_GRDH_1SDV_20260720T115502_20260720T115527_003757_006BD6_rtc",
+        "file": "sar_timeline/sar_2026-07-20.png"
+      },
+      {
+        "date": "2026-07-22",
+        "scene_id": "S1D_IW_GRDH_1SDV_20260722T234745_20260722T234810_003793_006D1F_rtc",
+        "file": "sar_timeline/sar_2026-07-22.png"
+      }
+    ],
+    "daily_optical_precip": [
+      {
+        "date": "2026-07-01",
+        "cloud_fraction": 0.4288,
+        "mean_intensity": 95.241,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-02",
+        "cloud_fraction": 0.0732,
+        "mean_intensity": 148.235,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-03",
+        "cloud_fraction": 0.006,
+        "mean_intensity": 72.529,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-04",
+        "cloud_fraction": 0.2731,
+        "mean_intensity": 149.464,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-05",
+        "cloud_fraction": 1.0,
+        "mean_intensity": 145.238,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-06",
+        "cloud_fraction": 1.0,
+        "mean_intensity": 132.122,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-07",
+        "cloud_fraction": 1.0,
+        "mean_intensity": 120.089,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-08",
+        "cloud_fraction": 1.0,
+        "mean_intensity": 138.095,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-09",
+        "cloud_fraction": 0.9999,
+        "mean_intensity": 192.26,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-10",
+        "cloud_fraction": 0.9863,
+        "mean_intensity": 190.565,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-11",
+        "cloud_fraction": null,
+        "mean_intensity": 180.889,
+        "optical_available": false
+      },
+      {
+        "date": "2026-07-12",
+        "cloud_fraction": null,
+        "mean_intensity": 165.199,
+        "optical_available": false
+      },
+      {
+        "date": "2026-07-13",
+        "cloud_fraction": null,
+        "mean_intensity": 27.968,
+        "optical_available": false
+      },
+      {
+        "date": "2026-07-14",
+        "cloud_fraction": null,
+        "mean_intensity": 64.47,
+        "optical_available": false
+      },
+      {
+        "date": "2026-07-15",
+        "cloud_fraction": null,
+        "mean_intensity": 2.729,
+        "optical_available": false
+      },
+      {
+        "date": "2026-07-16",
+        "cloud_fraction": null,
+        "mean_intensity": 68.979,
+        "optical_available": false
+      },
+      {
+        "date": "2026-07-17",
+        "cloud_fraction": 0.8662,
+        "mean_intensity": 125.693,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-18",
+        "cloud_fraction": 0.4214,
+        "mean_intensity": 97.832,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-19",
+        "cloud_fraction": 0.9958,
+        "mean_intensity": 114.562,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-20",
+        "cloud_fraction": 0.901,
+        "mean_intensity": 66.136,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-21",
+        "cloud_fraction": 0.6591,
+        "mean_intensity": 165.343,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-22",
+        "cloud_fraction": 0.5126,
+        "mean_intensity": 140.867,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-23",
+        "cloud_fraction": 0.9369,
+        "mean_intensity": 134.021,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-24",
+        "cloud_fraction": 0.8303,
+        "mean_intensity": 20.259,
+        "optical_available": true
+      },
+      {
+        "date": "2026-07-25",
+        "cloud_fraction": 0.1812,
+        "mean_intensity": 78.882,
+        "optical_available": true
+      }
+    ],
+    "optical_blackout_note": "The optical tile had zero valid pixels (no real coverage, not a clear reading) on: 2026-07-11, 2026-07-12, 2026-07-13, 2026-07-14, 2026-07-15, 2026-07-16. cloud_fraction is null on those days rather than a misleading 0.0."
+  },
+  "methodology_note": "All SAR imagery is real Sentinel-1 data, radiometrically terrain-corrected, read directly from Microsoft Planetary Computer with no authentication required. A 15x15 median filter (despeckling) was applied before differencing, a standard SAR preprocessing step, not a model. All optical/precipitation imagery is real daily NASA GIBS browse imagery. All stats are computed directly from this real pixel data (dB conversion, spatial median filter, simple averaging/thresholding); no machine learning model was trained or run to produce any of these numbers.",
+  "notes": "2026-07-11: optical tile has no real coverage (fully black). 2026-07-12: optical tile has no real coverage (fully black). 2026-07-13: optical tile has no real coverage (fully black). 2026-07-14: optical tile has no real coverage (fully black). 2026-07-15: optical tile has no real coverage (fully black). 2026-07-16: optical tile has no real coverage (fully black)."
+}
