@@ -84,11 +84,21 @@ QA_ASSET = "qa_pixel"
 
 # NDVI -> 0..1 density, a plain threshold remap (not a trained model):
 # bare ground/cleared land reads at or below NDVI_LOW, closed canopy at or
-# above NDVI_HIGH, linear in between. Chosen from typical tropical-forest
-# vs. bare-soil NDVI ranges, the same spirit as build_ground_terrain.py's
-# WORLDCOVER_DENSITY lookup table.
-NDVI_LOW = 0.15
-NDVI_HIGH = 0.65
+# above NDVI_HIGH, linear in between.
+#
+# Calibrated from this AOI's own measured range, not a generic tropical-
+# forest textbook range: the first run (NDVI_LOW=0.15, NDVI_HIGH=0.65, a
+# generic guess) clipped every real decadal mean_ndvi except the 2026
+# landslide collapse to density 1.0, because this plot's real NDVI across
+# 1990-2026 runs 0.545-0.885, almost entirely above 0.65. That saturation
+# hid the real, measured year-to-year decline and made the scene look like
+# "unchanged for decades, then one sudden 2026 event," rather than showing
+# the real fluctuation the Landsat record actually contains. NDVI_HIGH=0.90
+# sits just above this AOI's own observed maximum (0.885, 2025-10-01) so
+# every real sample keeps a distinct, comparable density instead of pinning
+# to the ceiling.
+NDVI_LOW = 0.0
+NDVI_HIGH = 0.90
 
 # Real dates to sample, oldest first, with gaps shrinking as they approach
 # the real 2026 landslide: decades apart in the 1990s-2000s, then years,

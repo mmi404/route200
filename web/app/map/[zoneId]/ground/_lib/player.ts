@@ -52,7 +52,14 @@ export const PLAYER_RADIUS = 0.35;
 export const WALL_STANDOFF = 0.35;
 export const MAX_PITCH = 1.25;
 export const MAX_DT = 0.05;
-export const MAX_CLIMB_ANGLE = (38 * Math.PI) / 180;
+// 48 degrees: comfortably above the steepest grade anywhere inside the
+// walkable disc of Teknaf's real Copernicus DEM terrain (measured max
+// 43.4 degrees, mean 27.9 degrees), so every real hillside stays climbable
+// (slower the steeper it gets), while a genuinely vertical face (a wall, or
+// the encircling synthetic ridge) still exceeds it and stays blocked. The
+// original 38 degrees was tuned only against the synthetic hand-built
+// hill, which never needed anyone to climb real, measured terrain.
+export const MAX_CLIMB_ANGLE = (48 * Math.PI) / 180;
 /** Exponential damping rates, 1/s. Higher is snappier. */
 const ACCEL_RATE = 10;
 const BRAKE_RATE = 13;

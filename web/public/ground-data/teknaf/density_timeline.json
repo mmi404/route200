@@ -12,8 +12,8 @@
     "originZ": -180.0
   },
   "ndvi_density_mapping": {
-    "ndvi_low": 0.15,
-    "ndvi_high": 0.65,
+    "ndvi_low": 0.0,
+    "ndvi_high": 0.9,
     "note": "density = clip((ndvi - ndvi_low) / (ndvi_high - ndvi_low), 0, 1); a plain threshold remap, not a trained model."
   },
   "samples": [
@@ -27,7 +27,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.674,
-      "mean_density": 0.96
+      "mean_density": 0.753
     },
     {
       "target_date": "2000-01-15",
@@ -39,7 +39,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.757,
-      "mean_density": 0.993
+      "mean_density": 0.844
     },
     {
       "target_date": "2008-01-15",
@@ -51,7 +51,7 @@
       "window_clear_fraction": 0.898,
       "search_window_days": 60,
       "mean_ndvi": 0.715,
-      "mean_density": 0.943
+      "mean_density": 0.791
     },
     {
       "target_date": "2013-06-15",
@@ -63,7 +63,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.592,
-      "mean_density": 0.852
+      "mean_density": 0.658
     },
     {
       "target_date": "2016-01-15",
@@ -75,7 +75,7 @@
       "window_clear_fraction": 0.949,
       "search_window_days": 60,
       "mean_ndvi": 0.591,
-      "mean_density": 0.878
+      "mean_density": 0.658
     },
     {
       "target_date": "2019-01-15",
@@ -87,7 +87,7 @@
       "window_clear_fraction": 0.842,
       "search_window_days": 60,
       "mean_ndvi": 0.693,
-      "mean_density": 0.958
+      "mean_density": 0.772
     },
     {
       "target_date": "2021-06-15",
@@ -99,7 +99,7 @@
       "window_clear_fraction": 0.898,
       "search_window_days": 60,
       "mean_ndvi": 0.545,
-      "mean_density": 0.775
+      "mean_density": 0.601
     },
     {
       "target_date": "2023-01-15",
@@ -111,7 +111,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.759,
-      "mean_density": 0.994
+      "mean_density": 0.843
     },
     {
       "target_date": "2024-07-01",
@@ -123,7 +123,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.641,
-      "mean_density": 0.924
+      "mean_density": 0.721
     },
     {
       "target_date": "2025-01-01",
@@ -135,7 +135,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.662,
-      "mean_density": 0.917
+      "mean_density": 0.731
     },
     {
       "target_date": "2025-07-01",
@@ -147,7 +147,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.717,
-      "mean_density": 0.959
+      "mean_density": 0.789
     },
     {
       "target_date": "2025-10-01",
@@ -159,7 +159,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.885,
-      "mean_density": 1.0
+      "mean_density": 0.983
     },
     {
       "target_date": "2026-01-01",
@@ -171,7 +171,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.83,
-      "mean_density": 1.0
+      "mean_density": 0.924
     },
     {
       "target_date": "2026-04-01",
@@ -183,7 +183,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.699,
-      "mean_density": 0.977
+      "mean_density": 0.776
     },
     {
       "target_date": "2026-05-04",
@@ -195,7 +195,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.634,
-      "mean_density": 0.926
+      "mean_density": 0.704
     },
     {
       "target_date": "2026-06-25",
@@ -243,7 +243,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.869,
-      "mean_density": 1.0
+      "mean_density": 0.966
     },
     {
       "target_date": "2026-09-26",
@@ -255,7 +255,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.869,
-      "mean_density": 1.0
+      "mean_density": 0.966
     },
     {
       "target_date": "2026-11-05",
@@ -267,7 +267,7 @@
       "window_clear_fraction": 1.0,
       "search_window_days": 60,
       "mean_ndvi": 0.869,
-      "mean_density": 1.0
+      "mean_density": 0.966
     }
   ],
   "skipped_target_dates": [],

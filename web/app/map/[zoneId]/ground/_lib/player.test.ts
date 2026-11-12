@@ -112,6 +112,15 @@ describe("stepPlayer", () => {
     expect(down.x).toBeCloseTo(flat.x, 1);
   });
 
+  it("climbs a steep real-DEM-like slope (43 degrees) slowly instead of stalling", () => {
+    // Teknaf's real heightmap peaks at ~43.4 degrees inside the walkable
+    // disc (PROGRESS.md "Phase 6"); a visitor must still be able to reach
+    // it, just slowly, not be hard-blocked the way a true cliff is.
+    const slope = (x: number) => x * Math.tan((43 * Math.PI) / 180);
+    const up = run(start({ yaw: -Math.PI / 2 }), { moveZ: 1, sprint: true }, 6, flatWorld({ heightAt: slope }));
+    expect(up.x).toBeGreaterThan(1);
+  });
+
   it("is pushed out of an obstacle and slides along it", () => {
     const world = flatWorld({ obstacles: [{ x: 0, z: -3, r: 1 }] });
     // Walk straight at the centre of the circle.

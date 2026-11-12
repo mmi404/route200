@@ -10,7 +10,9 @@ import type { Locale } from "@/lib/locale";
 import { translations } from "@/lib/translations";
 import type { ChangeEvent } from "@/lib/types";
 import { useMapData } from "../../_lib/useMapData";
-import { isoToDayIndex, zoneEventHistory } from "../../_lib/severity";
+import { dateRangeOfEvents, isoToDayIndex, zoneEventHistory } from "../../_lib/severity";
+import { densityTimelineRange } from "../ground/_lib/realTerrain";
+import { useRealTerrain } from "../ground/_components/useRealTerrain";
 import { TerrainCanvas } from "./TerrainCanvas";
 import { ExploreScrubber } from "./ExploreScrubber";
 
@@ -30,6 +32,7 @@ type ZoneExploreProps = {
  */
 export function ZoneExplore({ zoneId, locale }: ZoneExploreProps) {
   const { zones, events, loading, error } = useMapData(locale);
+  const { data: realTerrain } = useRealTerrain(zoneId);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(() => prefersReducedMotion());
 
@@ -63,6 +66,26 @@ export function ZoneExplore({ zoneId, locale }: ZoneExploreProps) {
     }
     return latest;
   }, [history, day]);
+
+  // A zone with a real density timeline (Teknaf) can reach much further
+  // back than its recorded severity events: widen this page's scrubbable
+  // range the same way Ground View's does, so the two pages agree on how
+  // far back the real history goes instead of this one staying stuck at
+  // its recorded events' own short window.
+  const timelineRange = useMemo(
+    () => (realTerrain ? densityTimelineRange(realTerrain.densityTimeline) : null),
+    [realTerrain],
+  );
+  const dayRange = useMemo(() => {
+    const bounds = dateRangeOfEvents(history);
+    let low = bounds.low;
+    let high = bounds.high;
+    if (timelineRange) {
+      if (timelineRange.minIso < low) low = timelineRange.minIso;
+      if (timelineRange.maxIso > high) high = timelineRange.maxIso;
+    }
+    return { min: isoToDayIndex(low), max: isoToDayIndex(high) };
+  }, [history, timelineRange]);
 
   if (error) {
     return (
@@ -140,6 +163,8 @@ export function ZoneExplore({ zoneId, locale }: ZoneExploreProps) {
             history={history}
             day={day}
             onChangeAction={setSelectedDay}
+            minDay={dayRange.min}
+            maxDay={dayRange.max}
           />
         )}
 
