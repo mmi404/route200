@@ -509,20 +509,23 @@ describe("real terrain", () => {
     expect(clearedAmount(0, 0, layout, 0)).toBe(0);
   });
 
-  it("generateTreeSlots is pulled toward the grid's denser real areas, and its total scales with mean density", () => {
+  it("generateTreeSlots is pulled toward the grid's denser real areas, and its total scales with local mean density", () => {
     const layout = sceneLayoutForZone("zone-cht-teknaf", makeRealTerrainFixture());
     const slots = generateTreeSlots(layout, 3000);
-    // The fixture's 81-node grid has 9 zero-density nodes (radius < 20) and
-    // 72 full-density ones, mean 72/81: the overall quota scales down from
-    // 3000 by that mean, on top of (not instead of) the per-position
-    // rejection below, since a grid that is uniformly sparse everywhere
-    // has nothing for the per-position rejection alone to reduce.
-    expect(slots).toHaveLength(Math.round(3000 * (72 / 81)));
+    // The quota scale samples a 72 m radius around the origin (walkRadius +
+    // 20), not the whole measured grid, and squares the result for trees
+    // (real low land-cover density otherwise still fills the walkable world
+    // with hundreds of full-size trees). The fixture's zero-density disc
+    // (radius 20) is a small fraction of that 72 m sampling radius, so the
+    // local mean lands high (~0.95) even though the grid's own overall mean
+    // (72 full-density nodes of 81) would suggest otherwise; squared, that
+    // still only trims the quota a little, to 2714 of 3000, deterministically.
+    expect(slots).toHaveLength(2714);
     expect(generateTreeSlots(layout, 3000)).toEqual(slots); // still deterministic
     const nearFraction = slots.filter((s) => Math.hypot(s.x, s.z) < 18).length / slots.length;
     // Sampling is area-uniform inside the walkable disc's near band, so with
     // no density weighting roughly (18/72)^2 =~ 6% of trees would land
-    // within radius 18. The fixture's density there is 0 (below the 0.08
+    // within radius 18. The fixture's density there is 0 (below the 0.02
     // floor only), so the real fraction should sit well under that.
     expect(nearFraction).toBeLessThan(0.03);
   });
@@ -540,7 +543,9 @@ describe("real terrain", () => {
     };
     const layout = sceneLayoutForZone("zone-cht-teknaf", flooded);
     const slots = generateTreeSlots(layout, 3000);
-    expect(slots).toHaveLength(300); // 3000 * max(0.08 floor, 0.1 mean density)
+    // Uniform 0.1 density squared is 0.01, below the 0.02 tree floor, so the
+    // floor itself sets the scale: 3000 * max(0.02 floor, 0.1^2) = 60.
+    expect(slots).toHaveLength(60);
   });
 
   it("generateUndergrowthSlots is also pulled toward the denser real areas", () => {

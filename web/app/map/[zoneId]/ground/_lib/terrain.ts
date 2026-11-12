@@ -572,23 +572,47 @@ export interface TreeSlot {
   jitter: number;
 }
 
-function meanGridValue(grid: Grid): number {
+/** Mean real density within radius of the world origin, sampled on a
+ *  regular grid and masked to the circle, not the whole measured density
+ *  grid: that grid extends out to the edge of its ~360 m scan window
+ *  (`build_ground_terrain.py`'s extraction half-extent), well past
+ *  `worldRadius`, so a patch of real forest the visitor can never reach
+ *  (e.g. along a distant tributary at the edge of the scan) must not
+ *  inflate how much vegetation appears inside the walkable world. */
+function localMeanDensity(grid: Grid, radius: number): number {
+  const samples = 12;
   let sum = 0;
-  for (let i = 0; i < grid.values.length; i++) sum += grid.values[i];
-  return grid.values.length > 0 ? sum / grid.values.length : 0;
+  let count = 0;
+  for (let i = 0; i < samples; i++) {
+    for (let j = 0; j < samples; j++) {
+      const x = -radius + (2 * radius * i) / (samples - 1);
+      const z = -radius + (2 * radius * j) / (samples - 1);
+      if (Math.hypot(x, z) > radius) continue;
+      sum += sampleGrid(grid, x, z);
+      count++;
+    }
+  }
+  return count > 0 ? sum / count : 0;
 }
 
 /** How much a real density grid's overall level, not just its spatial
  *  shape, should scale a slot quota. The per-candidate rejection below
- *  only reshapes WHERE slots land inside this one grid, and does nothing
- *  when the grid has no spatial contrast; a density timeline sample that
- *  reads uniformly sparse across the whole local window (the whole plot
- *  measured as cleared, or standing water, on one real date) still needs
- *  to reduce how much canopy appears at all, which only scaling the quota
- *  itself achieves. */
-function realCountScale(layout: SceneLayout, floor: number): number {
+ *  only reshapes WHERE slots land inside the walkable world, and does
+ *  nothing when the grid has no spatial contrast there; a density sample
+ *  that reads uniformly sparse across the walkable world (real cropland or
+ *  char, or the whole plot measured as cleared on one real date) still
+ *  needs to reduce how much canopy appears at all, which only scaling the
+ *  quota itself achieves. `exponent` above 1 compresses a low real density
+ *  further: real land-cover cropland/bare values (around 0.1-0.3) still
+ *  carry enough weight under a plain linear scale to fill the walkable
+ *  world with hundreds of full-size trees, reading as thinned forest
+ *  rather than the open, largely treeless ground those real values
+ *  describe; trees use exponent 2 for exactly this reason, undergrowth
+ *  (low ground cover, plausible even on real cropland) stays linear. */
+function realCountScale(layout: SceneLayout, floor: number, exponent = 1): number {
   if (!layout.realTerrain) return 1;
-  return Math.max(floor, meanGridValue(layout.realTerrain.density));
+  const local = localMeanDensity(layout.realTerrain.density, layout.walkRadius + 20);
+  return Math.max(floor, local ** exponent);
 }
 
 /** Hard ceiling on rejection-sampling attempts per wanted slot, so an
@@ -603,7 +627,7 @@ const MAX_SLOT_ATTEMPTS_PER_TARGET = 300;
 export function generateTreeSlots(layout: SceneLayout, count: number): TreeSlot[] {
   const rng = createRng(layout.seed + 7919);
   const inner = layout.walkRadius + 20;
-  const target = Math.round(count * realCountScale(layout, TREE_DENSITY_FLOOR));
+  const target = Math.round(count * realCountScale(layout, TREE_DENSITY_FLOOR, 2));
   const slots: TreeSlot[] = [];
   for (let attempt = 0; slots.length < target && attempt < target * MAX_SLOT_ATTEMPTS_PER_TARGET; attempt++) {
     const radius =
@@ -639,12 +663,20 @@ function isRealWater(layout: SceneLayout, x: number, z: number): boolean {
 
 /** Rejection-sampling floor so a zero-density real spot (bare ground,
  *  built-up, water) still gets the occasional tree rather than a hard
- *  edge, and so the loop above never stalls. */
-const TREE_DENSITY_FLOOR = 0.08;
+ *  edge, and so the loop above never stalls. Small: trees are the tallest,
+ *  most visually dominant slot kind, so a real zero-density spot should
+ *  read as open ground with the rare stray tree, not a guaranteed stand. */
+const TREE_DENSITY_FLOOR = 0.02;
 
-/** Same idea for undergrowth, with a higher floor: ferns and grass still
- *  grow at the edge of cropland or a clearing, unlike closed-canopy trees. */
-const UNDERGROWTH_DENSITY_FLOOR = 0.25;
+/** Same idea for undergrowth: ferns and grass still grow at the edge of
+ *  cropland or a clearing, unlike closed-canopy trees, so this floor stays
+ *  a little higher than the tree one, but well short of forcing a quarter
+ *  of max ground cover onto a real zero-density spot the way the original
+ *  0.25 did. Its quota uses exponent 1.6 (see `realCountScale`'s call
+ *  sites): low enough, unlike the trees' exponent 2, that real cropland
+ *  still shows scattered grass rather than nothing, but high enough that a
+ *  real sandbar/char reads as mostly open ground, not a lawn. */
+const UNDERGROWTH_DENSITY_FLOOR = 0.02;
 
 /** How visible (0..1) a tree is at this severity: gone where its spot is
  *  cleared, thinning through a soft band (staggered per tree by `jitter`) so
@@ -744,7 +776,7 @@ export function isSeverityStatic(x: number, z: number, layout: SceneLayout): boo
 export function generateDistantTreeSlots(layout: SceneLayout, count: number): TreeSlot[] {
   const rng = createRng(layout.seed + 104729);
   const inner = layout.walkRadius + 4;
-  const target = Math.round(count * realCountScale(layout, TREE_DENSITY_FLOOR));
+  const target = Math.round(count * realCountScale(layout, TREE_DENSITY_FLOOR, 2));
   const slots: TreeSlot[] = [];
   for (let attempt = 0; slots.length < target && attempt < target * MAX_SLOT_ATTEMPTS_PER_TARGET; attempt++) {
     const radius = Math.sqrt(inner * inner + rng() * (layout.worldRadius ** 2 - inner * inner));
@@ -796,7 +828,7 @@ function pickUndergrowthKind(u: number): number {
 export function generateUndergrowthSlots(layout: SceneLayout, count: number): UndergrowthSlot[] {
   const rng = createRng(layout.seed + 31337);
   const reach = layout.walkRadius + 14;
-  const target = Math.round(count * realCountScale(layout, UNDERGROWTH_DENSITY_FLOOR));
+  const target = Math.round(count * realCountScale(layout, UNDERGROWTH_DENSITY_FLOOR, 1.6));
   const clusterCount = Math.max(8, Math.round(target / 22));
   const clusters = Array.from({ length: clusterCount }, () => {
     const r = reach * Math.sqrt(rng());
