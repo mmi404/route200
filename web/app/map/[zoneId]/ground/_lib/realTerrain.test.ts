@@ -1,0 +1,49 @@
+import { describe, expect, it } from "vitest";
+import { hasRealTerrain, sampleGrid, type Grid } from "./realTerrain";
+
+/** 3x3 grid, 10 m cells, centred on the origin: values rise by 1 per cell
+ *  along x and 10 per cell along z, so bilinear interpolation is easy to
+ *  check by hand. */
+function makeGrid(): Grid {
+  // row-major: values[row * 3 + col], row = z index, col = x index.
+  const values = new Float32Array([
+    0, 1, 2, // z = -10
+    10, 11, 12, // z = 0
+    20, 21, 22, // z = 10
+  ]);
+  return { width: 3, height: 3, cellSize: 10, originX: -10, originZ: -10, values };
+}
+
+describe("sampleGrid", () => {
+  it("returns exact values at grid nodes", () => {
+    const grid = makeGrid();
+    expect(sampleGrid(grid, -10, -10)).toBe(0);
+    expect(sampleGrid(grid, 0, 0)).toBe(11);
+    expect(sampleGrid(grid, 10, 10)).toBe(22);
+  });
+
+  it("interpolates linearly between nodes", () => {
+    const grid = makeGrid();
+    expect(sampleGrid(grid, -5, -10)).toBeCloseTo(0.5, 5);
+    expect(sampleGrid(grid, 0, -10)).toBeCloseTo(1, 5);
+    expect(sampleGrid(grid, -10, -5)).toBeCloseTo(5, 5);
+    // Bilinear at the cell centre is the average of all four corners.
+    expect(sampleGrid(grid, -5, -5)).toBeCloseTo((0 + 1 + 10 + 11) / 4, 5);
+  });
+
+  it("clamps to the nearest edge value beyond the grid's extent", () => {
+    const grid = makeGrid();
+    expect(sampleGrid(grid, -1000, -10)).toBe(0);
+    expect(sampleGrid(grid, 1000, -10)).toBe(2);
+    expect(sampleGrid(grid, -10, 1000)).toBe(20);
+    expect(sampleGrid(grid, 1000, 1000)).toBe(22);
+  });
+});
+
+describe("hasRealTerrain", () => {
+  it("is true only for a zone with a real ground terrain pack", () => {
+    expect(hasRealTerrain("zone-cht-teknaf")).toBe(true);
+    expect(hasRealTerrain("zone-cht-lama")).toBe(false);
+    expect(hasRealTerrain("zone-jamuna-kazipur")).toBe(false);
+  });
+});

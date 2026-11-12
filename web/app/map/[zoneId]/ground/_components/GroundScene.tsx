@@ -5,17 +5,22 @@ import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { LOOK } from "../_lib/look";
 import { EYE_HEIGHT } from "../_lib/player";
+import type { RealTerrain } from "../_lib/realTerrain";
 import {
   clamp01,
   generateTreeSlots,
+  realTerrainStops,
   sceneLayoutForZone,
   terrainHeight,
+  type RealDataStop,
 } from "../_lib/terrain";
 import { PlayerController } from "./PlayerController";
 import type { WalkInput } from "./useWalkInput";
 import { Forest } from "./scene/Forest";
 import { Settlement } from "./scene/Settlement";
 import { Atmosphere } from "./scene/Atmosphere";
+import { Stops } from "./scene/Stops";
+import { StopProximity } from "./scene/StopProximity";
 import { Terrain, type GroundQuality } from "./scene/Terrain";
 
 type GroundSceneProps = {
@@ -28,6 +33,11 @@ type GroundSceneProps = {
   quality?: GroundQuality;
   /** Called when the WebGL context is lost and does not come back. */
   onContextFailed?: () => void;
+  /** Real elevation/density/disturbance grids for this zone, or null for
+   *  every zone without a ground terrain pack (see _lib/realTerrain.ts). */
+  realTerrain?: RealTerrain | null;
+  /** Called whenever the nearest real-data stop within range changes. */
+  onNearStopChange?: (stop: RealDataStop | null) => void;
 };
 
 const TREE_COUNT = 1400;
@@ -62,11 +72,15 @@ function ContextGuard({ onFail }: { onFail: () => void }) {
 }
 
 /**
- * The Ground View 3D scene (PROGRESS.md, "Phase 3: Ground View"): a
- * stylized, human-scale (1 unit = 1 metre) jungle the visitor walks through
- * in first person, where the forest thins, a hill is cut away, and a road
- * and a house appear as the zone's real recorded severity rises. Explicitly
- * illustrative, not a terrain or imagery reconstruction.
+ * The Ground View 3D scene (PROGRESS.md, "Phase 3: Ground View" and "Phase
+ * 5: Real ground terrain"): a human-scale (1 unit = 1 metre) jungle the
+ * visitor walks through in first person, where the forest thins, a hill is
+ * cut away, and a road and a house appear as the zone's real recorded
+ * severity rises. For a zone with a real terrain pack (`realTerrain`,
+ * Teknaf today), the hill height, tree/undergrowth density and the
+ * disturbance shape are real satellite measurements (see _lib/terrain.ts
+ * and _lib/realTerrain.ts); every other zone, and the road/house for every
+ * zone, stays the original stylized illustration.
  *
  * Structure: each concern lives in its own file under ./scene/ (Terrain,
  * Forest, Settlement) so it can be reworked independently; this file only
@@ -88,9 +102,15 @@ export function GroundScene({
   inputRef,
   quality = "high",
   onContextFailed,
+  realTerrain,
+  onNearStopChange,
 }: GroundSceneProps) {
-  const layout = useMemo(() => sceneLayoutForZone(zoneId), [zoneId]);
+  const layout = useMemo(
+    () => sceneLayoutForZone(zoneId, realTerrain ?? undefined),
+    [zoneId, realTerrain],
+  );
   const trees = useMemo(() => generateTreeSlots(layout, TREE_COUNT), [layout]);
+  const stops = useMemo(() => realTerrainStops(layout), [layout]);
   const severityFraction = clamp01(severity / 100);
 
   // Only the first-frame camera position: PlayerController owns it after
@@ -123,6 +143,8 @@ export function GroundScene({
         reducedMotion={reducedMotion}
       />
       <Settlement layout={layout} severityFraction={severityFraction} />
+      <Stops layout={layout} stops={stops} />
+      {onNearStopChange && <StopProximity stops={stops} onChange={onNearStopChange} />}
       <PlayerController
         layout={layout}
         trees={trees}

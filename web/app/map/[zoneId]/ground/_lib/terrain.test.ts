@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChangeEvent } from "@/lib/types";
 import { isoToDayIndex } from "../../../_lib/severity";
+import type { Grid, RealTerrain } from "./realTerrain";
 import {
   baseHeight,
   clearedAmount,
@@ -14,6 +15,7 @@ import {
   houseToWorld,
   isSeverityStatic,
   logAmount,
+  realTerrainStops,
   roadAppear,
   roadInfo,
   roadWidth,
@@ -29,6 +31,50 @@ import {
   UNDERGROWTH_KINDS,
   undergrowthVisibility,
 } from "./terrain";
+
+/** A small synthetic real-terrain fixture: a real pack would come from
+ *  evidence/scripts/build_ground_terrain.py, but the rendering code only
+ *  needs the Grid shape, so a hand-built one is enough to exercise the
+ *  real-data branches without a network fetch. 9x9 cells, 10 m spacing,
+ *  covering -40..40: a hill peaking at the origin, a disturbed disc of
+ *  radius 15 around it, and zero tree density inside radius 20 vs. full
+ *  density outside (so density weighting has something to grab onto). */
+function makeRealTerrainFixture(): RealTerrain {
+  const half = 40;
+  const cell = 10;
+  const n = Math.round((2 * half) / cell) + 1;
+  const heights = new Float32Array(n * n);
+  const density = new Float32Array(n * n);
+  const disturbance = new Float32Array(n * n);
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      const x = -half + col * cell;
+      const z = -half + row * cell;
+      const dist = Math.hypot(x, z);
+      const idx = row * n + col;
+      heights[idx] = 20 - dist * 0.3;
+      density[idx] = dist < 20 ? 0 : 1;
+      disturbance[idx] = dist < 15 ? 1 : 0;
+    }
+  }
+  const grid = (values: Float32Array): Grid => ({
+    width: n,
+    height: n,
+    cellSize: cell,
+    originX: -half,
+    originZ: -half,
+    values,
+  });
+  return {
+    heights: grid(heights),
+    density: grid(density),
+    disturbance: grid(disturbance),
+    referenceElevationM: 100,
+    disturbanceComponentPx: 500,
+    sarBeforeDate: "2026-05-04",
+    sarAfterDate: "2026-11-05",
+  };
+}
 
 const ZONES = ["zone-cht-teknaf", "zone-jmn-sirajganj", "zone-x", "zone-cht-bandarban"];
 
@@ -406,5 +452,75 @@ describe("settlement plan", () => {
     // Local +Z is the door side, which points at the road end.
     expect(front.x - layout.house.x).toBeCloseTo(Math.sin(layout.house.yaw) * 5, 9);
     expect(front.z - layout.house.z).toBeCloseTo(Math.cos(layout.house.yaw) * 5, 9);
+  });
+});
+
+describe("real terrain", () => {
+  it("omitting realTerrain leaves a zone's layout exactly as before this feature", () => {
+    expect(sceneLayoutForZone("zone-cht-teknaf").realTerrain).toBeUndefined();
+  });
+
+  it("baseHeight follows the real grid's macro shape, centred on the reference point", () => {
+    const layout = sceneLayoutForZone("zone-cht-teknaf", makeRealTerrainFixture());
+    expect(layout.scarCenter).toEqual({ x: 0, z: 0 });
+    // The fixture's hill peaks at 20 m at the origin; fine texture noise is
+    // at most 0.9 m, so this should land close to 20, nowhere near the
+    // unrelated synthetic hillHeight of 11.
+    expect(baseHeight(0, 0, layout)).toBeGreaterThan(18);
+    expect(baseHeight(0, 0, layout)).toBeLessThan(21);
+    // Falls off with distance, matching the fixture's -0.3 m/m slope.
+    expect(baseHeight(0, 0, layout)).toBeGreaterThan(baseHeight(30, 0, layout));
+  });
+
+  it("clearedAmount follows the real disturbance grid's shape, not a synthetic blob", () => {
+    const layout = sceneLayoutForZone("zone-cht-teknaf", makeRealTerrainFixture());
+    // Below the road/house appear threshold (0.55), so this isolates the
+    // scar/disturbance term alone, wherever this seed happens to place the
+    // road and house.
+    const severity = 0.3;
+    // Inside the fixture's disturbed disc (radius 15).
+    expect(clearedAmount(0, 0, layout, severity)).toBeGreaterThan(0);
+    // Outside it, but still well inside the walkable disc.
+    expect(clearedAmount(35, 0, layout, severity)).toBe(0);
+    // Still fades in with severity exactly as the synthetic scar does.
+    expect(clearedAmount(0, 0, layout, 0)).toBe(0);
+  });
+
+  it("generateTreeSlots is pulled toward the grid's denser real areas", () => {
+    const layout = sceneLayoutForZone("zone-cht-teknaf", makeRealTerrainFixture());
+    const slots = generateTreeSlots(layout, 3000);
+    expect(slots).toHaveLength(3000);
+    expect(generateTreeSlots(layout, 3000)).toEqual(slots); // still deterministic
+    const nearFraction = slots.filter((s) => Math.hypot(s.x, s.z) < 18).length / slots.length;
+    // Sampling is area-uniform inside the walkable disc's near band, so with
+    // no density weighting roughly (18/72)^2 =~ 6% of trees would land
+    // within radius 18. The fixture's density there is 0 (below the 0.08
+    // floor only), so the real fraction should sit well under that.
+    expect(nearFraction).toBeLessThan(0.03);
+  });
+
+  it("generateUndergrowthSlots is also pulled toward the denser real areas", () => {
+    const layout = sceneLayoutForZone("zone-cht-teknaf", makeRealTerrainFixture());
+    const slots = generateUndergrowthSlots(layout, 6000);
+    const nearFraction = slots.filter((s) => Math.hypot(s.x, s.z) < 18).length / slots.length;
+    // Unweighted, roughly 6% of slots would land within radius 18 (area
+    // proportion of the sampling disc); the fixture's density there is 0
+    // (floor-rate only), so the real fraction should sit clearly under that.
+    expect(nearFraction).toBeLessThan(0.05);
+  });
+
+  it("realTerrainStops is empty without real terrain, and centred on the reference point with it", () => {
+    const synthetic = sceneLayoutForZone("zone-cht-teknaf");
+    expect(realTerrainStops(synthetic)).toEqual([]);
+
+    const real = sceneLayoutForZone("zone-cht-teknaf", makeRealTerrainFixture());
+    const stops = realTerrainStops(real);
+    expect(stops.length).toBeGreaterThanOrEqual(1);
+    expect(stops[0]).toEqual({ x: 0, z: 0, kind: "disturbance" });
+    expect(realTerrainStops(real)).toEqual(stops); // cached, not re-derived each call
+    const heights = real.realTerrain!.heights;
+    for (const stop of stops) {
+      expect(Math.hypot(stop.x, stop.z)).toBeLessThan(heights.width * heights.cellSize);
+    }
   });
 });

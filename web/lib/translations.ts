@@ -656,6 +656,32 @@ export const translations = {
       en: "An illustrated walk through {name}, built from its real recorded history. The trees, road and house are stylized, not satellite imagery.",
       bn: "{name}-এর আসল রেকর্ড করা ইতিহাস থেকে তৈরি একটি চিত্রিত দৃশ্য। গাছ, রাস্তা আর বাড়ি শৈলীকৃত, এগুলো স্যাটেলাইট ছবি নয়।",
     },
+    // Shown instead of `caption` for a zone with a real ground terrain pack
+    // (evidence/scripts/build_ground_terrain.py), where the hill height,
+    // tree cover and cleared ground are real measurements, not invented.
+    captionReal: {
+      en: "A walk through {name}'s real measured terrain: hill height from satellite elevation data, tree cover from satellite land cover data, and the cleared ground from a real before/after radar comparison. The road and house are still stylized, not satellite imagery.",
+      bn: "{name}-এর প্রকৃত পরিমাপ করা ভূখণ্ড: স্যাটেলাইট উচ্চতা তথ্য থেকে পাহাড়ের উচ্চতা, স্যাটেলাইট ভূমি আবরণ তথ্য থেকে গাছের ঘনত্ব, আর প্রকৃত আগে-পরে রাডার তুলনা থেকে পরিষ্কার হওয়া জমি। রাস্তা আর বাড়ি এখনও শৈলীকৃত, এগুলো স্যাটেলাইট ছবি নয়।",
+    },
+    // Shown only when the visitor walks near one of a real-terrain zone's
+    // fixed stops (_lib/terrain.ts realTerrainStops). {areaHa}/{before}/
+    // {after}/{degrees} are filled from the zone's real ground-data meta.
+    realStopDisturbanceTitle: {
+      en: "Real measurement here",
+      bn: "এখানে প্রকৃত পরিমাপ",
+    },
+    realStopDisturbanceBody: {
+      en: "Sentinel-1 radar recorded a real backscatter drop over about {areaHa} ha around this spot between {before} and {after}, the signature of ground that was cleared.",
+      bn: "{before} থেকে {after} এর মধ্যে এই স্থানের প্রায় {areaHa} হেক্টর জুড়ে সেন্টিনেল-১ রাডার একটি প্রকৃত ব্যাকস্ক্যাটার হ্রাস রেকর্ড করেছে, যা পরিষ্কার হওয়া জমির চিহ্ন।",
+    },
+    realStopSlopeTitle: {
+      en: "Steepest real slope here",
+      bn: "এখানে সবচেয়ে খাড়া প্রকৃত ঢাল",
+    },
+    realStopSlopeBody: {
+      en: "Real elevation data measures the ground here rising at about {degrees} degrees, the steepest grade on this walk.",
+      bn: "প্রকৃত উচ্চতা তথ্য অনুযায়ী এখানে মাটি প্রায় {degrees} ডিগ্রি কোণে উঠেছে, এই হাঁটা পথের সবচেয়ে খাড়া ঢাল।",
+    },
   },
 
   // ---------------------------------------------------------------------

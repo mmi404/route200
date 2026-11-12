@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { formatCitationDate } from "@/app/components";
 import { prefersReducedMotion } from "@/lib/design-tokens";
 import { format, t, zoneDisplayName } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
@@ -14,9 +15,33 @@ import { ExploreScrubber } from "../../_components/ExploreScrubber";
 import { GroundBoundary } from "./GroundBoundary";
 import { ControlsLegend, ControlsToggle, JoystickLayer, SeverityReadout } from "./GroundHud";
 import { GroundScene } from "./GroundScene";
-import { severityAtDay } from "../_lib/terrain";
+import type { RealTerrain } from "../_lib/realTerrain";
+import { severityAtDay, type RealDataStop } from "../_lib/terrain";
 import { useCoarsePointer, useGroundQuality } from "./useDeviceProfile";
+import { useRealTerrain } from "./useRealTerrain";
 import { useWalkInput } from "./useWalkInput";
+
+/** Title/body for the HUD card shown when the visitor is near a real-data
+ *  stop (_lib/terrain.ts realTerrainStops), filled from that zone's real
+ *  ground-data meta rather than any invented number. */
+function stopCopy(stop: RealDataStop, realTerrain: RealTerrain, locale: Locale): { title: string; body: string } {
+  const copy = translations.groundView;
+  if (stop.kind === "disturbance") {
+    const areaHa = (realTerrain.disturbanceComponentPx / 100).toFixed(1);
+    return {
+      title: t(copy.realStopDisturbanceTitle, locale),
+      body: format(t(copy.realStopDisturbanceBody, locale), {
+        areaHa,
+        before: formatCitationDate(realTerrain.sarBeforeDate),
+        after: formatCitationDate(realTerrain.sarAfterDate),
+      }),
+    };
+  }
+  return {
+    title: t(copy.realStopSlopeTitle, locale),
+    body: format(t(copy.realStopSlopeBody, locale), { degrees: String(stop.slopeDegrees ?? 0) }),
+  };
+}
 
 /** How long the "?" button keeps the controls legend open. */
 const LEGEND_PIN_MS = 8000;
@@ -48,8 +73,10 @@ type GroundViewProps = {
  */
 export function GroundView({ zoneId, locale }: GroundViewProps) {
   const { zones, events, loading, error } = useMapData(locale);
+  const { data: realTerrain, loading: realTerrainLoading } = useRealTerrain(zoneId);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(() => prefersReducedMotion());
+  const [nearStop, setNearStop] = useState<RealDataStop | null>(null);
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -127,7 +154,7 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
     );
   }
 
-  if (loading || !zones) return null;
+  if (loading || realTerrainLoading || !zones) return null;
 
   if (!zone) {
     return (
@@ -150,6 +177,7 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
 
   const name = zoneDisplayName(zone.properties, locale);
   const copy = translations.groundView;
+  const nearStopCopy = nearStop && realTerrain ? stopCopy(nearStop, realTerrain, locale) : null;
   const showPrompt = !interacted && (touchUi || !locked);
   // Before the zone's first recorded event there is nothing to estimate.
   const recorded = history.length > 0 && day >= isoToDayIndex(history[0].dateRangeEnd);
@@ -171,6 +199,8 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
             inputRef={inputRef}
             quality={quality}
             onContextFailed={onContextFailed}
+            realTerrain={realTerrain}
+            onNearStopChange={setNearStop}
           />
         </div>
 
@@ -233,12 +263,18 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
               reducedMotion={reducedMotion}
             />
           )}
+          {nearStopCopy && (
+            <div className="pointer-events-none w-full rounded-xs bg-ink/80 px-3 py-2 text-paper">
+              <p className="type-meta text-paper/80">{nearStopCopy.title}</p>
+              <p className="text-[0.8125rem] leading-[1.4]">{nearStopCopy.body}</p>
+            </div>
+          )}
           <div
             ref={cardRef}
             className="pointer-events-auto flex w-full flex-col gap-2 rounded-xs bg-surface/95 px-3 py-2.5 shadow-map"
           >
             <p className="text-[0.8125rem] leading-[1.45] text-ink-muted [&:lang(bn)]:leading-[1.6]">
-              {format(t(copy.caption, locale), { name })}
+              {format(t(realTerrain ? copy.captionReal : copy.caption, locale), { name })}
             </p>
 
             {history.length === 0 ? (

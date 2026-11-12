@@ -13,6 +13,7 @@
  */
 import type { ChangeEvent } from "@/lib/types";
 import { isoToDayIndex } from "../../../_lib/severity";
+import { sampleGrid, type RealTerrain } from "./realTerrain";
 
 /** FNV-1a style string hash, deterministic across runs and platforms. */
 export function hashSeed(input: string): number {
@@ -128,19 +129,36 @@ export interface SceneLayout {
   house: Placement;
   /** Road centreline, from outside walkRadius (rim) to beside the house. */
   road: Array<{ x: number; z: number }>;
+  /** Real elevation/density/disturbance grids, when this zone has a ground
+   *  terrain pack built by evidence/scripts/build_ground_terrain.py.
+   *  Absent for every zone except Teknaf today; everything below falls
+   *  back to the original synthetic generation when it is absent. */
+  realTerrain?: RealTerrain;
 }
 
 /** One stable layout per zone id. Independent of severity, so the *place*
- *  doesn't move as the slider scrubs, only its *state* does. */
-export function sceneLayoutForZone(zoneId: string): SceneLayout {
+ *  doesn't move as the slider scrubs, only its *state* does.
+ *
+ *  `realTerrain`, when given, replaces the synthetic hill, scar shape and
+ *  vegetation density with real satellite-derived grids (baseHeight,
+ *  scarMask, generateTreeSlots/generateUndergrowthSlots/
+ *  generateDistantTreeSlots below); the scene's local origin then becomes
+ *  the grid's own reference point, i.e. the real location of the measured
+ *  disturbance, instead of a hash-seeded point. */
+export function sceneLayoutForZone(zoneId: string, realTerrain?: RealTerrain): SceneLayout {
   const seed = hashSeed(zoneId);
   const rng = createRng(seed);
   const walkRadius = 52;
   const worldRadius = 120;
 
+  // Drawn either way so every later rng() draw lands on the same value
+  // regardless of whether realTerrain is present; only scarCenter itself
+  // differs.
   const scarAngle = rng() * Math.PI * 2;
   const scarRadius = 10 + rng() * 8;
-  const scarCenter = { x: Math.cos(scarAngle) * scarRadius, z: Math.sin(scarAngle) * scarRadius };
+  const scarCenter = realTerrain
+    ? { x: 0, z: 0 }
+    : { x: Math.cos(scarAngle) * scarRadius, z: Math.sin(scarAngle) * scarRadius };
   const structureAngle = rng() * Math.PI * 2;
 
   // The visitor starts on the origin side of the scar, with the hill that is
@@ -206,6 +224,7 @@ export function sceneLayoutForZone(zoneId: string): SceneLayout {
     // Door (+Z) toward the road end.
     house: { x: houseX, z: houseZ, yaw: Math.atan2(end.x - houseX, end.z - houseZ) },
     road,
+    realTerrain,
   };
 
   // Spawn: 30-34 m from the scar centre, on gentle ground, clear of the road
@@ -245,6 +264,16 @@ function slopeOf(x: number, z: number, layout: SceneLayout): number {
  */
 export function baseHeight(x: number, z: number, layout: SceneLayout): number {
   const s = layout.seed;
+  if (layout.realTerrain) {
+    // Real elevation (Copernicus DEM GLO-30, bilinear-resampled) gives the
+    // macro shape; the two finest noise octaves stay on top as sub-30 m
+    // ground texture, the same role they already play over the synthetic
+    // hill below, now sitting on a real contour instead of a fake one.
+    const macro = sampleGrid(layout.realTerrain.heights, x, z);
+    const texture =
+      valueNoise2D(x / 11, z / 11, s + 23) * 0.6 + valueNoise2D(x / 4.3, z / 4.3, s + 37) * 0.3;
+    return macro + texture;
+  }
   const undulation =
     valueNoise2D(x / 48, z / 48, s) * 4.6 +
     valueNoise2D(x / 24, z / 24, s + 11) * 1.9 +
@@ -401,6 +430,12 @@ export function houseAppear(severityFraction: number): number {
 function scarMask(x: number, z: number, layout: SceneLayout, severityFraction: number): number {
   const growth = smoothstep(severityFraction, 0.04, 0.9);
   if (growth <= 0) return 0;
+  if (layout.realTerrain) {
+    // Real shape (the actual Sentinel-1 before/after footprint) instead of
+    // a synthetic radial blob; still fades in with severity exactly as the
+    // synthetic scar does below.
+    return sampleGrid(layout.realTerrain.disturbance, x, z) * growth;
+  }
   const dx = x - layout.scarCenter.x;
   const dz = z - layout.scarCenter.z;
   const dist = Math.hypot(dx, dz);
@@ -544,10 +579,22 @@ export function generateTreeSlots(layout: SceneLayout, count: number): TreeSlot[
     const jitter = rng();
     // Keep the spawn point itself free of trunks.
     if (Math.hypot(x - layout.spawn.x, z - layout.spawn.z) < 2.5) continue;
+    if (layout.realTerrain && rng() > Math.max(TREE_DENSITY_FLOOR, sampleGrid(layout.realTerrain.density, x, z))) {
+      continue;
+    }
     slots.push({ x, z, rotationY, baseScale, variant, jitter });
   }
   return slots;
 }
+
+/** Rejection-sampling floor so a zero-density real spot (bare ground,
+ *  built-up, water) still gets the occasional tree rather than a hard
+ *  edge, and so the loop above never stalls. */
+const TREE_DENSITY_FLOOR = 0.08;
+
+/** Same idea for undergrowth, with a higher floor: ferns and grass still
+ *  grow at the edge of cropland or a clearing, unlike closed-canopy trees. */
+const UNDERGROWTH_DENSITY_FLOOR = 0.25;
 
 /** How visible (0..1) a tree is at this severity: gone where its spot is
  *  cleared, thinning through a soft band (staggered per tree by `jitter`) so
@@ -651,14 +698,16 @@ export function generateDistantTreeSlots(layout: SceneLayout, count: number): Tr
   while (slots.length < count) {
     const radius = Math.sqrt(inner * inner + rng() * (layout.worldRadius ** 2 - inner * inner));
     const angle = rng() * Math.PI * 2;
-    slots.push({
-      x: Math.cos(angle) * radius,
-      z: Math.sin(angle) * radius,
-      rotationY: rng() * Math.PI * 2,
-      baseScale: 0.8 + rng() * 0.8,
-      variant: Math.min(3, Math.floor(rng() * 4)),
-      jitter: rng(),
-    });
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const rotationY = rng() * Math.PI * 2;
+    const baseScale = 0.8 + rng() * 0.8;
+    const variant = Math.min(3, Math.floor(rng() * 4));
+    const jitter = rng();
+    if (layout.realTerrain && rng() > Math.max(TREE_DENSITY_FLOOR, sampleGrid(layout.realTerrain.density, x, z))) {
+      continue;
+    }
+    slots.push({ x, z, rotationY, baseScale, variant, jitter });
   }
   return slots;
 }
@@ -733,6 +782,12 @@ export function generateUndergrowthSlots(layout: SceneLayout, count: number): Un
     if (Math.hypot(x, z) > reach) continue;
     // Nothing growing in the visitor's face on arrival.
     if (Math.hypot(x - layout.spawn.x, z - layout.spawn.z) < 3) continue;
+    if (
+      layout.realTerrain &&
+      rng() > Math.max(UNDERGROWTH_DENSITY_FLOOR, sampleGrid(layout.realTerrain.density, x, z))
+    ) {
+      continue;
+    }
     slots.push({ x, z, rotationY, scale, kind, jitter });
   }
   return slots;
@@ -956,4 +1011,61 @@ export function settlementObstacles(
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Real-data stops: a couple of fixed waypoints, present only when the zone
+// has a real terrain pack, that surface the actual measured numbers behind
+// the terrain in-scene instead of only on the separate evidence page.
+// ---------------------------------------------------------------------------
+
+export type RealDataStopKind = "disturbance" | "slope";
+
+export interface RealDataStop {
+  x: number;
+  z: number;
+  kind: RealDataStopKind;
+  /** Set only for kind "slope": the steepest real grade found on the walk. */
+  slopeDegrees?: number;
+}
+
+/** Coarse scan of baseHeight inside walkRadius for the steepest point a
+ *  visitor can actually reach. 16x16 is plenty for a single waypoint; this
+ *  runs once per layout, not per frame. */
+function steepestRealPoint(layout: SceneLayout): { x: number; z: number; slope: number } {
+  let best = { x: 0, z: 0, slope: 0 };
+  const steps = 16;
+  for (let i = 0; i < steps; i++) {
+    for (let j = 0; j < steps; j++) {
+      const x = -layout.walkRadius + (2 * layout.walkRadius * i) / (steps - 1);
+      const z = -layout.walkRadius + (2 * layout.walkRadius * j) / (steps - 1);
+      if (Math.hypot(x, z) >= layout.walkRadius - 2) continue;
+      const slope = slopeOf(x, z, layout);
+      if (slope > best.slope) best = { x, z, slope };
+    }
+  }
+  return best;
+}
+
+const stopsCache = new WeakMap<SceneLayout, RealDataStop[]>();
+
+/** Empty for every zone without a real terrain pack. For Teknaf today: the
+ *  reference point itself (the real measured disturbance the scene is
+ *  centred on) and the steepest real slope reachable on the walk. */
+export function realTerrainStops(layout: SceneLayout): RealDataStop[] {
+  if (!layout.realTerrain) return [];
+  const cached = stopsCache.get(layout);
+  if (cached) return cached;
+  const stops: RealDataStop[] = [{ x: 0, z: 0, kind: "disturbance" }];
+  const steepest = steepestRealPoint(layout);
+  if (steepest.slope > 0.15) {
+    stops.push({
+      x: steepest.x,
+      z: steepest.z,
+      kind: "slope",
+      slopeDegrees: Math.round((Math.atan(steepest.slope) * 180) / Math.PI),
+    });
+  }
+  stopsCache.set(layout, stops);
+  return stops;
 }
