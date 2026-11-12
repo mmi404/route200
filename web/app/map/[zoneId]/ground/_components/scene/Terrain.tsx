@@ -1,9 +1,10 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { LOOK } from "../../_lib/look";
 import type { GroundQuality } from "../../_lib/quality";
+import { sampleGrid } from "../../_lib/realTerrain";
 import {
   baseHeight,
   roadAppear,
@@ -117,6 +118,9 @@ const vec3 C_SOIL_DRY = ${glslColor(g.soilDry)};
 const vec3 C_SOIL = ${glslColor(g.soil)};
 const vec3 C_SOIL_CUT = ${glslColor(g.soilCut)};
 const vec3 C_ROCK = ${glslColor(g.rock)};
+const vec3 C_SAND = ${glslColor(g.sand)};
+const vec3 C_SAND_WET = ${glslColor(g.sandWet)};
+const vec3 C_RIVERBED = ${glslColor(g.riverbed)};
 const vec3 C_ROAD = ${glslColor(r.surface)};
 const vec3 C_TRACK = ${glslColor(r.track)};
 const vec3 C_ROAD_EDGE = ${glslColor(r.edge)};
@@ -156,6 +160,9 @@ varying vec3 vGWorld;
 varying vec3 vGNormal;
 varying float vGCleared;
 varying vec2 vGRoad;
+varying float vGDensity;
+varying float vGWater;
+uniform float uWaterLevel;
 
 vec3 groundAlbedo(float viewDist) {
   vec2 p = vGWorld.xz;
@@ -218,6 +225,23 @@ vec3 groundAlbedo(float viewDist) {
   float disturbed = m * (1.0 - smoothstep(0.55, 0.9, vGCleared)) * 0.4;
   vec3 col = mix(f, s * (1.0 - disturbed * 0.3), m);
 
+  // Real vegetation density (ESA WorldCover, 1 = closed canopy, 0 = bare):
+  // a permanently low-density real spot (a sandbar, cropland, cleared
+  // ground) reads as pale dry sand/char regardless of the synthetic scar
+  // above, strongest right at the real river's own surface level and
+  // fading going up the bank. Exactly 1 (the default for every zone
+  // without a real density grid) reproduces today's look unchanged.
+  float bareness = 1.0 - smoothstep(0.08, 0.5, vGDensity);
+  float nearWaterLevel = 1.0 - smoothstep(0.0, 2.2, abs(vGWorld.y - uWaterLevel));
+  vec3 sand = mix(C_SAND, C_SAND_WET, nearWaterLevel * 0.7);
+  sand = mix(sand, sand * 0.88, smoothstep(0.45, 0.7, patchN));
+  sand = mix(sand, mix(sand, C_SOIL_DRY, 0.3), smoothstep(0.5, 0.8, broad) * 0.3);
+  col = mix(col, sand, bareness * mix(0.55, 0.95, nearWaterLevel));
+  // A true open-water cell (vGWater, when this zone has a river) sits
+  // under the Water scene component; tint its bed toward wet silt so
+  // shallow, near-transparent water still reads as a riverbed.
+  col = mix(col, C_RIVERBED, smoothstep(0.1, 0.5, vGWater) * 0.85);
+
   // Road painted onto the terrain: packed dirt, two lighter wheel tracks,
   // darker damp edges.
   float d = vGRoad.x;
@@ -234,8 +258,9 @@ vec3 groundAlbedo(float viewDist) {
     m = max(m, rm);
   }
 
-  // Under the canopy: dappled light on the forest floor, fading with distance.
-  float forest = 1.0 - m;
+  // Under the canopy: dappled light on the forest floor, fading with
+  // distance. A real-bare spot has no canopy to dapple under.
+  float forest = (1.0 - m) * (1.0 - bareness * 0.85);
   float dap = fbm3(p * 0.33 + 91.0) * 0.6 + vn(p * 0.95 + 7.0) * 0.4;
   float lit = smoothstep(0.44, 0.64, dap);
   float dapple = mix(0.64, 1.2, lit);
@@ -249,18 +274,27 @@ type ShaderParts = { vertexShader: string; fragmentShader: string };
 
 const cachedSource: Partial<Record<GroundQuality, string>> = {};
 
-function patchGroundShader(shader: ShaderParts, quality: GroundQuality): void {
+function patchGroundShader(
+  shader: ShaderParts & { uniforms: Record<string, { value: unknown }> },
+  quality: GroundQuality,
+  waterLevel: number,
+): void {
   const source = (cachedSource[quality] ??= groundShaderSource(quality));
+  shader.uniforms.uWaterLevel = { value: waterLevel };
   shader.vertexShader = shader.vertexShader
     .replace(
       "#include <common>",
       `#include <common>
 attribute float aCleared;
 attribute vec2 aRoad;
+attribute float aDensity;
+attribute float aWater;
 varying vec3 vGWorld;
 varying vec3 vGNormal;
 varying float vGCleared;
-varying vec2 vGRoad;`,
+varying vec2 vGRoad;
+varying float vGDensity;
+varying float vGWater;`,
     )
     .replace(
       "#include <begin_vertex>",
@@ -268,7 +302,9 @@ varying vec2 vGRoad;`,
 vGWorld = position;
 vGNormal = normal;
 vGCleared = aCleared;
-vGRoad = aRoad;`,
+vGRoad = aRoad;
+vGDensity = aDensity;
+vGWater = aWater;`,
     );
   shader.fragmentShader = shader.fragmentShader
     .replace("#include <common>", `#include <common>\n${source}`)
@@ -278,13 +314,12 @@ vGRoad = aRoad;`,
     );
 }
 
-// Module-level so the material gets stable props (and a distinct program
-// cache key per tier: three's cache would otherwise share one compiled
-// program between the two sources).
-const PATCH_BY_QUALITY: Record<GroundQuality, (shader: ShaderParts) => void> = {
-  high: (shader) => patchGroundShader(shader, "high"),
-  low: (shader) => patchGroundShader(shader, "low"),
-};
+// The compiled GLSL source is cached per quality tier only (ground-high /
+// ground-low), shared across every zone; uWaterLevel is a per-material
+// uniform set fresh in onBeforeCompile below, not baked into that source,
+// so the cache stays valid when the visitor moves between zones.
+// three.js requires this to be a function (it calls it to get the key),
+// not a plain string.
 const CACHE_KEY_BY_QUALITY: Record<GroundQuality, () => string> = {
   high: () => "ground-high",
   low: () => "ground-low",
@@ -312,6 +347,13 @@ export function Terrain({ layout, severityFraction, quality = "high" }: TerrainP
     const base = new Float32Array(count);
     const road = new Float32Array(count);
     const roadAttr = new Float32Array(count * 2);
+    // Real-data attributes, severity independent: density defaults to 1
+    // (today's full-forest look) and water to 0 for every zone without a
+    // real grid, so a zone with no realTerrain renders byte-identical.
+    const densityAttr = new Float32Array(count).fill(1);
+    const waterAttr = new Float32Array(count);
+    const realDensity = layout.realTerrain?.density;
+    const realWater = layout.realTerrain?.water;
     for (let j = 0; j < n; j++) {
       for (let i = 0; i < n; i++) {
         const k = j * n + i;
@@ -322,6 +364,8 @@ export function Terrain({ layout, severityFraction, quality = "high" }: TerrainP
         base[k] = baseHeight(x, z, layout);
         road[k] = Math.min(60, roadInfo(x, z, layout).dist);
         roadAttr[k * 2] = road[k];
+        if (realDensity) densityAttr[k] = sampleGrid(realDensity, x, z);
+        if (realWater) waterAttr[k] = sampleGrid(realWater, x, z);
       }
     }
     const index = new Uint32Array((n - 1) * (n - 1) * 6);
@@ -380,6 +424,8 @@ export function Terrain({ layout, severityFraction, quality = "high" }: TerrainP
     geo.setAttribute("normal", normalAttr);
     geo.setAttribute("aCleared", new THREE.BufferAttribute(clearedInit, 1));
     geo.setAttribute("aRoad", new THREE.BufferAttribute(roadAttr, 2));
+    geo.setAttribute("aDensity", new THREE.BufferAttribute(densityAttr, 1));
+    geo.setAttribute("aWater", new THREE.BufferAttribute(waterAttr, 1));
     geo.setIndex(new THREE.BufferAttribute(index, 1));
     return { geometry: geo, baseHeights: base, roadDist: road, lines, affected, span };
   }, [layout, quality]);
@@ -416,11 +462,29 @@ export function Terrain({ layout, severityFraction, quality = "high" }: TerrainP
 
   useLayoutEffect(() => () => geometry.dispose(), [geometry]);
 
+  // Sentinel far below any real elevation when this zone has no water
+  // grid, so `nearWaterLevel` in the shader is always ~0.
+  const waterLevel = layout.realTerrain?.waterLevelM ?? -1e4;
+  const shaderRef = useRef<{ uniforms: Record<string, { value: unknown }> } | null>(null);
+  const onBeforeCompile = useCallback(
+    (shader: ShaderParts & { uniforms: Record<string, { value: unknown }> }) => {
+      patchGroundShader(shader, quality, waterLevel);
+      shaderRef.current = shader;
+    },
+    [quality, waterLevel],
+  );
+  // Covers the case where the material survives a zone change (same
+  // quality, so no recompile): the uniform still gets the new zone's
+  // water level without needing a fresh shader program.
+  useLayoutEffect(() => {
+    if (shaderRef.current) shaderRef.current.uniforms.uWaterLevel.value = waterLevel;
+  }, [waterLevel]);
+
   return (
     <mesh ref={meshRef} geometry={geometry} frustumCulled={false}>
       <meshLambertMaterial
         key={quality}
-        onBeforeCompile={PATCH_BY_QUALITY[quality]}
+        onBeforeCompile={onBeforeCompile}
         customProgramCacheKey={CACHE_KEY_BY_QUALITY[quality]}
       />
     </mesh>

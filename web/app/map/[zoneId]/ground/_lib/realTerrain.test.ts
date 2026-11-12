@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  capGrid,
   densityTimelineRange,
   hasRealTerrain,
   nearestDensitySample,
@@ -70,6 +71,19 @@ describe("nearestDensitySample", () => {
     expect(nearestDensitySample(timeline, "2000-01-01")).toBe(timeline[0]);
     expect(nearestDensitySample(timeline, "2010-06-01")).toBe(timeline[1]);
     expect(nearestDensitySample(timeline, "2026-12-31")).toBe(timeline[2]);
+  });
+});
+
+describe("capGrid", () => {
+  it("takes the element-wise minimum, so a healthy-NDVI cell on bare land-cover stays capped", () => {
+    const ndvi: Grid = { width: 2, height: 1, cellSize: 10, originX: 0, originZ: 0, values: new Float32Array([0.9, 0.2]) };
+    const landCover: Grid = { width: 2, height: 1, cellSize: 10, originX: 0, originZ: 0, values: new Float32Array([0.15, 0.95]) };
+    const capped = capGrid(ndvi, landCover);
+    expect(capped.values[0]).toBeCloseTo(0.15, 5);
+    expect(capped.values[1]).toBeCloseTo(0.2, 5);
+    // Shape/axes carried over from the first argument.
+    expect(capped.width).toBe(2);
+    expect(capped.cellSize).toBe(10);
   });
 });
 

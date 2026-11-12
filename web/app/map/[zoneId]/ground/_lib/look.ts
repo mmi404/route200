@@ -36,6 +36,12 @@ export const LOOK = {
     soil: "#9a774e",
     soilCut: "#74563a",
     rock: "#8c8676",
+    /** Exposed river sandbar (a char): pale, dry silt and sand near the
+     *  water's own level, distinct from the hillside's browner cleared soil. */
+    sand: "#d9c896",
+    sandWet: "#b8a371",
+    /** Wet riverbed silt, seen faintly through shallow, near-transparent water. */
+    riverbed: "#746a4f",
   },
   /** Far hill ranges beyond the terrain, nearest to farthest. Unlit and hand-set
    *  (they ignore fog), each paler and warmer toward the horizon haze. */
@@ -82,6 +88,13 @@ export const LOOK = {
   },
   metal: {
     wire: "#2b2a28",
+  },
+  /** River water, used only where real WorldCover data has open water
+   *  (_lib/realTerrain.ts's `water` grid); absent elsewhere. */
+  water: {
+    deep: "#2f5a63",
+    shallow: "#5f98a0",
+    foam: "#dfeee9",
   },
   house: {
     wall: "#c8b08a",

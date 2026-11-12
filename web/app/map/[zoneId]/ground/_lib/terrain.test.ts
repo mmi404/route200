@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChangeEvent } from "@/lib/types";
 import { isoToDayIndex } from "../../../_lib/severity";
-import type { Grid, RealTerrain } from "./realTerrain";
+import { sampleGrid, type Grid, type RealTerrain } from "./realTerrain";
 import {
   baseHeight,
   clearedAmount,
@@ -75,6 +75,28 @@ function makeRealTerrainFixture(): RealTerrain {
     sarAfterDate: "2026-11-05",
     densityTimeline: [],
   };
+}
+
+/** Adds a real water grid to a fixture, open water (1) inside `radius` of
+ *  the origin and dry (0) outside it, as build_ground_terrain.py's
+ *  build_water would produce for a zone with a visible river. Sized to
+ *  cover the whole world radius itself (unlike the small density/
+ *  disturbance fixture grid), so a query anywhere a generator actually
+ *  samples lands on a real dry or wet node, never a clamped edge value. */
+function withWater(base: RealTerrain, radius: number, levelM: number): RealTerrain {
+  const half = 140;
+  const cell = 10;
+  const n = Math.round((2 * half) / cell) + 1;
+  const values = new Float32Array(n * n);
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      const x = -half + col * cell;
+      const z = -half + row * cell;
+      values[row * n + col] = Math.hypot(x, z) < radius ? 1 : 0;
+    }
+  }
+  const water: Grid = { width: n, height: n, cellSize: cell, originX: -half, originZ: -half, values };
+  return { ...base, water, waterLevelM: levelM };
 }
 
 const ZONES = ["zone-cht-teknaf", "zone-jmn-sirajganj", "zone-x", "zone-cht-bandarban"];
@@ -544,5 +566,41 @@ describe("real terrain", () => {
     for (const stop of stops) {
       expect(Math.hypot(stop.x, stop.z)).toBeLessThan(heights.width * heights.cellSize);
     }
+  });
+
+  it("baseHeight is flat at the real water level inside a real water grid, and unaffected without one", () => {
+    const dry = sceneLayoutForZone("zone-cht-teknaf", makeRealTerrainFixture());
+    // No water grid: the fixture's hill shape is untouched by this feature.
+    expect(baseHeight(0, 0, dry)).toBeGreaterThan(15);
+
+    const real = withWater(makeRealTerrainFixture(), 15, 2);
+    const wet = sceneLayoutForZone("zone-cht-teknaf", real);
+    // Deep inside the water mask: pulled down to (just below) the real
+    // water level, nowhere near the fixture's unflattened hill height.
+    expect(baseHeight(0, 0, wet)).toBeGreaterThan(1.7);
+    expect(baseHeight(0, 0, wet)).toBeLessThan(2.1);
+    // Well outside the water mask: ordinary real-hill behaviour, same as
+    // the dry fixture.
+    expect(baseHeight(35, 0, wet)).toBeCloseTo(baseHeight(35, 0, dry), 0);
+  });
+
+  it("no tree, undergrowth or distant-tree slot ever lands on real open water", () => {
+    // Radius 60 reaches into generateDistantTreeSlots' 56..120 sampling
+    // annulus too, not just the near trees' and undergrowth's smaller one.
+    const real = withWater(makeRealTerrainFixture(), 60, 2);
+    const layout = sceneLayoutForZone("zone-cht-teknaf", real);
+    const water = real.water!;
+    // The real rejection threshold itself (isRealWater, not re-derived from
+    // the fixture's geometric radius): near the circle's edge, bilinear
+    // interpolation between a wet and a dry grid node can legitimately read
+    // just under the threshold a touch inside the nominal radius, so this
+    // checks the same real invariant the renderer relies on.
+    const isOnWater = (x: number, z: number) => sampleGrid(water, x, z) > 0.4;
+    expect(generateTreeSlots(layout, 4000).length).toBeGreaterThan(0);
+    expect(generateUndergrowthSlots(layout, 4000).length).toBeGreaterThan(0);
+    expect(generateDistantTreeSlots(layout, 4000).length).toBeGreaterThan(0);
+    for (const slot of generateTreeSlots(layout, 4000)) expect(isOnWater(slot.x, slot.z)).toBe(false);
+    for (const slot of generateUndergrowthSlots(layout, 4000)) expect(isOnWater(slot.x, slot.z)).toBe(false);
+    for (const slot of generateDistantTreeSlots(layout, 4000)) expect(isOnWater(slot.x, slot.z)).toBe(false);
   });
 });

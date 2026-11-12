@@ -99,6 +99,19 @@ WORLDCOVER_DENSITY = {
     100: 0.1,  # moss and lichen
 }
 
+# How much of each class is real open water, for the river/channel grid.
+# Permanent water bodies count fully; herbaceous wetland (the marshy fringe
+# a char often has) counts partially. Everything else is 0, i.e. dry land.
+WORLDCOVER_WATER = {
+    80: 1.0,  # permanent water bodies
+    90: 0.3,  # herbaceous wetland
+}
+
+# A zone only gets a water grid (and a water plane in the scene) when its
+# real WorldCover window actually contains a meaningful amount of open
+# water; a hillside with a stray wet pixel should not grow a river.
+MIN_WATER_COVERAGE = 0.005
+
 
 def meters_per_deg_lon(ref_lat_deg: float) -> float:
     return 111320.0 * math.cos(math.radians(ref_lat_deg))
@@ -291,8 +304,8 @@ def build_heightmap(catalog, ref_lon: float, ref_lat: float):
 # ---------------------------------------------------------------------------
 
 
-def build_density(catalog, ref_lon: float, ref_lat: float):
-    print("[density] Searching esa-worldcover")
+def fetch_worldcover(catalog, ref_lon: float, ref_lat: float):
+    print("[worldcover] Searching esa-worldcover")
     bbox = padded_lonlat_bbox(ref_lon, ref_lat, DENSITY_HALF_EXTENT)
     search = catalog.search(collections=[WORLDCOVER_COLLECTION], bbox=list(bbox))
     items = list(search.item_collection())
@@ -304,22 +317,65 @@ def build_density(catalog, ref_lon: float, ref_lat: float):
     print(f"  WorldCover item: {item.id}")
     href = planetary_computer.sign(item).assets["map"].href
     class_array, transform, crs = read_raster_window(href, bbox)
+    return item, class_array, transform, crs
 
+
+def classify_grid(class_array, transform, crs, lut: np.ndarray, ref_lon: float, ref_lat: float, half_extent: float, cell: float):
+    classified_px = lut[np.clip(class_array.astype(np.int64), 0, 255)]
+    axis, n = build_grid_axes(half_extent, cell)
+    xs, zs = np.meshgrid(axis, axis)
+    lons, lats = world_to_lonlat(xs, zs, ref_lon, ref_lat)
+    grid = sample_raster_at(classified_px, transform, crs, lons, lats, order=1).astype(np.float32)
+    return grid, n
+
+
+def build_density(class_array, transform, crs, ref_lon: float, ref_lat: float):
     lut = np.full(256, 0.1, dtype=np.float32)
     for code, value in WORLDCOVER_DENSITY.items():
         lut[code] = value
-    density_px = lut[np.clip(class_array.astype(np.int64), 0, 255)]
-
-    axis, n = build_grid_axes(DENSITY_HALF_EXTENT, DENSITY_CELL)
-    xs, zs = np.meshgrid(axis, axis)
-    lons, lats = world_to_lonlat(xs, zs, ref_lon, ref_lat)
-    density_grid = sample_raster_at(density_px, transform, crs, lons, lats, order=1).astype(np.float32)
-
+    density_grid, n = classify_grid(class_array, transform, crs, lut, ref_lon, ref_lat, DENSITY_HALF_EXTENT, DENSITY_CELL)
     print(
         f"  density range [{density_grid.min():.2f}, {density_grid.max():.2f}], "
         f"mean {density_grid.mean():.2f} over {n}x{n} cells at {DENSITY_CELL} m"
     )
-    return {"worldcover_item_id": item.id, "grid": density_grid, "n": n}
+    return {"grid": density_grid, "n": n}
+
+
+def build_water(class_array, transform, crs, ref_lon: float, ref_lat: float):
+    """A real open-water grid (WORLDCOVER_WATER), on the same axes as the
+    density grid. Returns None when the window has no meaningful water, so a
+    hillside zone never grows a stray river from a single wet pixel."""
+    lut = np.zeros(256, dtype=np.float32)
+    for code, value in WORLDCOVER_WATER.items():
+        lut[code] = value
+    water_grid, n = classify_grid(class_array, transform, crs, lut, ref_lon, ref_lat, DENSITY_HALF_EXTENT, DENSITY_CELL)
+    coverage = float((water_grid > 0.5).mean())
+    print(f"  water coverage {coverage * 100:.1f}% of {n}x{n} cells at {DENSITY_CELL} m")
+    if coverage < MIN_WATER_COVERAGE:
+        print(f"  below {MIN_WATER_COVERAGE * 100:.1f}% minimum; no water grid written")
+        return None
+    return {"grid": water_grid, "n": n, "coverage": coverage}
+
+
+def water_level_m(height_grid: np.ndarray, water_grid: np.ndarray) -> float:
+    """Real elevation (relative to the reference point) the water grid's
+    open-water cells actually sit at: the height grid resampled onto the
+    water grid's coarser axes via bilinear interpolation (both are regular
+    grids centred on the same origin, just different cell sizes), then the
+    median over cells WorldCover calls water. Falls back to the window's
+    lowest point when, implausibly, no cell clears the 0.5 threshold."""
+    h_n = height_grid.shape[0]
+    w_n = water_grid.shape[0]
+    h_cell = (2 * HEIGHT_HALF_EXTENT) / (h_n - 1)
+    w_axis = np.linspace(-DENSITY_HALF_EXTENT, DENSITY_HALF_EXTENT, w_n)
+    wx, wz = np.meshgrid(w_axis, w_axis)
+    rows = (wz + HEIGHT_HALF_EXTENT) / h_cell
+    cols = (wx + HEIGHT_HALF_EXTENT) / h_cell
+    sampled = map_coordinates(height_grid.astype(np.float64), [rows, cols], order=1, mode="nearest")
+    mask = water_grid > 0.5
+    if not mask.any():
+        return float(np.min(sampled))
+    return float(np.median(sampled[mask]))
 
 
 # ---------------------------------------------------------------------------
@@ -366,13 +422,19 @@ def main():
     ref_lon, ref_lat = ref_point["ref_lon"], ref_point["ref_lat"]
 
     height = build_heightmap(catalog, ref_lon, ref_lat)
-    density = build_density(catalog, ref_lon, ref_lat)
+    worldcover_item, class_array, wc_transform, wc_crs = fetch_worldcover(catalog, ref_lon, ref_lat)
+    density = build_density(class_array, wc_transform, wc_crs, ref_lon, ref_lat)
+    water = build_water(class_array, wc_transform, wc_crs, ref_lon, ref_lat)
     disturbance = build_disturbance(ref_point, ref_lon, ref_lat)
 
     out_dir = GROUND_DATA_ROOT / ZONE_SLUG
     write_grid_bin(height["grid"], out_dir / "heightmap.bin")
     write_grid_bin(density["grid"], out_dir / "density.bin")
     write_grid_bin(disturbance["grid"], out_dir / "disturbance.bin")
+    if water is not None:
+        write_grid_bin(water["grid"], out_dir / "water.bin")
+        water_level = round(water_level_m(height["grid"], water["grid"]), 2)
+        print(f"  water level {water_level:+.2f} m relative to the reference point")
 
     meta = {
         "zone_id": zone.zone_id,
@@ -383,7 +445,7 @@ def main():
         "sar_before_date": ref_point["before_date"],
         "sar_after_date": ref_point["after_date"],
         "dem_item_id": height["dem_item_id"],
-        "worldcover_item_id": density["worldcover_item_id"],
+        "worldcover_item_id": worldcover_item.id,
         "reference_elevation_m": height["reference_elevation_m"],
         "grids": {
             "heightmap": {
@@ -417,14 +479,28 @@ def main():
         },
         "methodology_note": (
             "heightmap.bin is real Copernicus DEM GLO-30 elevation (30 m posting), bilinear "
-            "resampled onto a 5 m local grid. density.bin is ESA WorldCover 10 m land cover, "
-            "classified into a density value per class then bilinear resampled onto a 10 m "
-            "local grid. disturbance.bin is the same despeckled Sentinel-1 VV dB difference "
-            "used for the evidence pack, resampled onto a 10 m local grid and linearly remapped "
-            "0..1 between the project's existing change threshold and clip. No model was "
-            "trained or run to produce any of these grids."
+            "resampled onto a 5 m local grid. density.bin and water.bin (when present) are both "
+            "ESA WorldCover 10 m land cover, classified into a vegetation-density value and an "
+            "open-water value per class respectively, each bilinear resampled onto a 10 m local "
+            "grid. disturbance.bin is the same despeckled Sentinel-1 VV dB difference used for "
+            "the evidence pack, resampled onto a 10 m local grid and linearly remapped 0..1 "
+            "between the project's existing change threshold and clip. No model was trained or "
+            "run to produce any of these grids."
         ),
     }
+    if water is not None:
+        meta["grids"]["water"] = {
+            "file": "water.bin",
+            "width": water["n"],
+            "height": water["n"],
+            "cellSize": DENSITY_CELL,
+            "originX": -DENSITY_HALF_EXTENT,
+            "originZ": -DENSITY_HALF_EXTENT,
+            "units": "0..1 real open-water fraction from ESA WorldCover (permanent water full, "
+            "herbaceous wetland partial)",
+        }
+        meta["water_level_m"] = water_level
+        meta["water_coverage_fraction"] = round(water["coverage"], 4)
     (out_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"Wrote {out_dir}")
 
@@ -432,6 +508,8 @@ def main():
     save_debug_png(height["grid"], debug_dir / "heightmap.png")
     save_debug_png(density["grid"], debug_dir / "density.png", lo=0.0, hi=1.0)
     save_debug_png(disturbance["grid"], debug_dir / "disturbance.png", lo=0.0, hi=1.0)
+    if water is not None:
+        save_debug_png(water["grid"], debug_dir / "water.png", lo=0.0, hi=1.0)
     print(f"Wrote debug previews to {debug_dir}")
     return 0
 

@@ -15,7 +15,7 @@ import { ExploreScrubber } from "../../_components/ExploreScrubber";
 import { GroundBoundary } from "./GroundBoundary";
 import { ControlsLegend, ControlsToggle, JoystickLayer, SeverityReadout } from "./GroundHud";
 import { GroundScene } from "./GroundScene";
-import { densityTimelineRange, nearestDensitySample, type RealTerrain } from "../_lib/realTerrain";
+import { capGrid, densityTimelineRange, nearestDensitySample, type RealTerrain } from "../_lib/realTerrain";
 import { severityAtDay, type RealDataStop } from "../_lib/terrain";
 import { useCoarsePointer, useGroundQuality } from "./useDeviceProfile";
 import { useRealTerrain } from "./useRealTerrain";
@@ -137,7 +137,11 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
   const resolvedRealTerrain = useMemo(() => {
     if (!realTerrain) return null;
     if (!activeDensitySample) return realTerrain;
-    return { ...realTerrain, density: activeDensitySample.grid };
+    // Capped by the static land-cover density (build_ground_terrain.py):
+    // NDVI greenness alone can't tell cropland from forest, so a healthy
+    // crop on an exposed sandbar reads as sparse cropland, not jungle,
+    // while a real forest (NDVI and land-cover both high) is unaffected.
+    return { ...realTerrain, density: capGrid(activeDensitySample.grid, realTerrain.density) };
   }, [realTerrain, activeDensitySample]);
 
   // Q / E (and [ / ]) step time by about 1/60 of the slider's range.

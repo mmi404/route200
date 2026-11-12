@@ -22,6 +22,7 @@ import { Atmosphere } from "./scene/Atmosphere";
 import { Stops } from "./scene/Stops";
 import { StopProximity } from "./scene/StopProximity";
 import { Terrain, type GroundQuality } from "./scene/Terrain";
+import { Water } from "./scene/Water";
 
 type GroundSceneProps = {
   zoneId: string;
@@ -135,6 +136,7 @@ export function GroundScene({
       {onContextFailed && <ContextGuard onFail={onContextFailed} />}
       <Atmosphere layout={layout} reducedMotion={reducedMotion} />
       <Terrain layout={layout} severityFraction={severityFraction} quality={quality} />
+      <Water layout={layout} reducedMotion={reducedMotion} />
       <Forest
         layout={layout}
         trees={trees}

@@ -60,6 +60,20 @@ function clamp(value: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, value));
 }
 
+/** Element-wise minimum of two grids built by the same evidence pipeline
+ *  (a real NDVI density-timeline sample and the static ESA WorldCover
+ *  land-cover density, both from build_ground_terrain.py's constants, so
+ *  they always share axes and shape): caps how green a spot's *current*
+ *  NDVI is allowed to read by what its *land-cover type* can ever support.
+ *  Without this, healthy cropland on an exposed sandbar, which can have
+ *  NDVI as high as a real forest's, would render as closed-canopy jungle
+ *  purely because it looks green right now. */
+export function capGrid(a: Grid, b: Grid): Grid {
+  const values = new Float32Array(a.values.length);
+  for (let i = 0; i < values.length; i++) values[i] = Math.min(a.values[i], b.values[i]);
+  return { ...a, values };
+}
+
 /** One real satellite-measured tree/vegetation-density grid, dated to the
  *  real scene it was read from (build_ground_density_timeline.py). */
 export interface DensitySample {
@@ -85,6 +99,15 @@ export interface RealTerrain {
    *  zone has no timeline pack (build_ground_density_timeline.py hasn't
    *  been run for it, or every target date failed). */
   densityTimeline: DensitySample[];
+  /** Real open-water fraction (ESA WorldCover), only for a zone whose real
+   *  window has a meaningful amount of open water (build_ground_terrain.py
+   *  skips writing this grid otherwise, e.g. every hillside zone). Absent
+   *  means "no river here," not "river is dry." */
+  water?: Grid;
+  /** The real elevation (relative to the reference point, same units as
+   *  `heights`) the water grid's open-water cells sit at. Present exactly
+   *  when `water` is. */
+  waterLevelM?: number;
 }
 
 /** The real sample closest to the given ISO date, or null if the timeline
@@ -129,13 +152,12 @@ interface GroundDataMeta {
   reference_disturbance_component_px: number;
   sar_before_date: string;
   sar_after_date: string;
-  grids: Record<
-    "heightmap" | "density" | "disturbance",
-    { file: string; width: number; height: number; cellSize: number; originX: number; originZ: number }
-  >;
+  water_level_m?: number;
+  grids: Record<"heightmap" | "density" | "disturbance", GridMeta> & { water?: GridMeta };
 }
 
 interface GridMeta {
+  file: string;
   width: number;
   height: number;
   cellSize: number;
@@ -188,11 +210,12 @@ export async function loadRealTerrain(zoneId: string): Promise<RealTerrain | nul
   if (!hasRealTerrain(zoneId)) return null;
   const base = `/ground-data/${SLUG_BY_ZONE_ID[zoneId]}`;
   const meta: GroundDataMeta = await fetch(`${base}/meta.json`).then((r) => r.json());
-  const [heights, density, disturbance, densityTimeline] = await Promise.all([
+  const [heights, density, disturbance, densityTimeline, water] = await Promise.all([
     fetch(`${base}/${meta.grids.heightmap.file}`).then((r) => r.arrayBuffer()),
     fetch(`${base}/${meta.grids.density.file}`).then((r) => r.arrayBuffer()),
     fetch(`${base}/${meta.grids.disturbance.file}`).then((r) => r.arrayBuffer()),
     loadDensityTimeline(base),
+    meta.grids.water ? fetch(`${base}/${meta.grids.water.file}`).then((r) => r.arrayBuffer()) : null,
   ]);
   return {
     heights: toGrid(meta.grids.heightmap, heights),
@@ -203,5 +226,7 @@ export async function loadRealTerrain(zoneId: string): Promise<RealTerrain | nul
     sarBeforeDate: meta.sar_before_date,
     sarAfterDate: meta.sar_after_date,
     densityTimeline,
+    water: meta.grids.water && water ? toGrid(meta.grids.water, water) : undefined,
+    waterLevelM: meta.water_level_m,
   };
 }

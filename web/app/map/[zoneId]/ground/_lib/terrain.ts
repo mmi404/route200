@@ -272,6 +272,19 @@ export function baseHeight(x: number, z: number, layout: SceneLayout): number {
     const macro = sampleGrid(layout.realTerrain.heights, x, z);
     const texture =
       valueNoise2D(x / 11, z / 11, s + 23) * 0.6 + valueNoise2D(x / 4.3, z / 4.3, s + 37) * 0.3;
+    const { water, waterLevelM } = layout.realTerrain;
+    if (water && waterLevelM !== undefined) {
+      // A river is flat: pull the ground down to a riverbed just below the
+      // real water surface level where WorldCover says open water, fading
+      // out the fine roughness there too (a channel has no leaf-litter
+      // texture). The Water scene component draws the actual surface on top.
+      const w = sampleGrid(water, x, z);
+      if (w > 0) {
+        const land = macro + texture;
+        const riverbed = waterLevelM - 0.15;
+        return land + (riverbed - land) * w;
+      }
+    }
     return macro + texture;
   }
   const undulation =
@@ -578,6 +591,13 @@ function realCountScale(layout: SceneLayout, floor: number): number {
   return Math.max(floor, meanGridValue(layout.realTerrain.density));
 }
 
+/** Hard ceiling on rejection-sampling attempts per wanted slot, so an
+ *  almost entirely real-water local window (the one case the floor-based
+ *  density rejection below cannot rescue) degrades to fewer slots than
+ *  asked for instead of spinning forever. Ordinary zones, real or
+ *  synthetic, never get close to this. */
+const MAX_SLOT_ATTEMPTS_PER_TARGET = 300;
+
 /** A fixed, seeded scatter across the whole world disk, denser inside
  *  walkRadius + 20 where the visitor can see it up close. */
 export function generateTreeSlots(layout: SceneLayout, count: number): TreeSlot[] {
@@ -585,7 +605,7 @@ export function generateTreeSlots(layout: SceneLayout, count: number): TreeSlot[
   const inner = layout.walkRadius + 20;
   const target = Math.round(count * realCountScale(layout, TREE_DENSITY_FLOOR));
   const slots: TreeSlot[] = [];
-  while (slots.length < target) {
+  for (let attempt = 0; slots.length < target && attempt < target * MAX_SLOT_ATTEMPTS_PER_TARGET; attempt++) {
     const radius =
       rng() < 0.7
         ? inner * Math.sqrt(rng())
@@ -599,12 +619,22 @@ export function generateTreeSlots(layout: SceneLayout, count: number): TreeSlot[
     const jitter = rng();
     // Keep the spawn point itself free of trunks.
     if (Math.hypot(x - layout.spawn.x, z - layout.spawn.z) < 2.5) continue;
+    if (isRealWater(layout, x, z)) continue;
     if (layout.realTerrain && rng() > Math.max(TREE_DENSITY_FLOOR, sampleGrid(layout.realTerrain.density, x, z))) {
       continue;
     }
     slots.push({ x, z, rotationY, baseScale, variant, jitter });
   }
   return slots;
+}
+
+/** True where a real water grid says this spot is open water: no tree,
+ *  undergrowth or far-tree slot can land there, overriding the density
+ *  floor that would otherwise still scatter the occasional tree. Absent
+ *  (false) for every zone without a water grid. */
+function isRealWater(layout: SceneLayout, x: number, z: number): boolean {
+  const water = layout.realTerrain?.water;
+  return water !== undefined && sampleGrid(water, x, z) > 0.4;
 }
 
 /** Rejection-sampling floor so a zero-density real spot (bare ground,
@@ -716,7 +746,7 @@ export function generateDistantTreeSlots(layout: SceneLayout, count: number): Tr
   const inner = layout.walkRadius + 4;
   const target = Math.round(count * realCountScale(layout, TREE_DENSITY_FLOOR));
   const slots: TreeSlot[] = [];
-  while (slots.length < target) {
+  for (let attempt = 0; slots.length < target && attempt < target * MAX_SLOT_ATTEMPTS_PER_TARGET; attempt++) {
     const radius = Math.sqrt(inner * inner + rng() * (layout.worldRadius ** 2 - inner * inner));
     const angle = rng() * Math.PI * 2;
     const x = Math.cos(angle) * radius;
@@ -725,6 +755,7 @@ export function generateDistantTreeSlots(layout: SceneLayout, count: number): Tr
     const baseScale = 0.8 + rng() * 0.8;
     const variant = Math.min(3, Math.floor(rng() * 4));
     const jitter = rng();
+    if (isRealWater(layout, x, z)) continue;
     if (layout.realTerrain && rng() > Math.max(TREE_DENSITY_FLOOR, sampleGrid(layout.realTerrain.density, x, z))) {
       continue;
     }
@@ -773,7 +804,7 @@ export function generateUndergrowthSlots(layout: SceneLayout, count: number): Un
     return { x: Math.cos(a) * r, z: Math.sin(a) * r, spread: 2.5 + rng() * 4.5, kind: pickUndergrowthKind(rng()) };
   });
   const slots: UndergrowthSlot[] = [];
-  while (slots.length < target) {
+  for (let attempt = 0; slots.length < target && attempt < target * MAX_SLOT_ATTEMPTS_PER_TARGET; attempt++) {
     let x: number;
     let z: number;
     let kind: number;
@@ -804,6 +835,7 @@ export function generateUndergrowthSlots(layout: SceneLayout, count: number): Un
     if (Math.hypot(x, z) > reach) continue;
     // Nothing growing in the visitor's face on arrival.
     if (Math.hypot(x - layout.spawn.x, z - layout.spawn.z) < 3) continue;
+    if (isRealWater(layout, x, z)) continue;
     if (
       layout.realTerrain &&
       rng() > Math.max(UNDERGROWTH_DENSITY_FLOOR, sampleGrid(layout.realTerrain.density, x, z))

@@ -41,5 +41,5 @@
       "units": "0..1 real Sentinel-1 backscatter drop, clipped between 3.0 and 6.0 dB"
     }
   },
-  "methodology_note": "heightmap.bin is real Copernicus DEM GLO-30 elevation (30 m posting), bilinear resampled onto a 5 m local grid. density.bin is ESA WorldCover 10 m land cover, classified into a density value per class then bilinear resampled onto a 10 m local grid. disturbance.bin is the same despeckled Sentinel-1 VV dB difference used for the evidence pack, resampled onto a 10 m local grid and linearly remapped 0..1 between the project's existing change threshold and clip. No model was trained or run to produce any of these grids."
+  "methodology_note": "heightmap.bin is real Copernicus DEM GLO-30 elevation (30 m posting), bilinear resampled onto a 5 m local grid. density.bin and water.bin (when present) are both ESA WorldCover 10 m land cover, classified into a vegetation-density value and an open-water value per class respectively, each bilinear resampled onto a 10 m local grid. disturbance.bin is the same despeckled Sentinel-1 VV dB difference used for the evidence pack, resampled onto a 10 m local grid and linearly remapped 0..1 between the project's existing change threshold and clip. No model was trained or run to produce any of these grids."
 }
