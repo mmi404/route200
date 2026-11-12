@@ -61,8 +61,8 @@ GROUND_DATA_ROOT = REPO / "web" / "public" / "ground-data"
 STAC_URL = be.STAC_URL
 LANDSAT_COLLECTION = "landsat-c2-l2"
 
-ZONE_SLUG = "teknaf"
-ZONE_ID = "zone-cht-teknaf"
+ZONE_SLUG = sys.argv[1] if len(sys.argv) > 1 else "teknaf"
+ZONE_ID = next(z.zone_id for z in be.ZONES if z.slug == ZONE_SLUG)
 
 # Same grid shape as build_ground_terrain.py's density.bin, so the web app
 # can sample every real sample the same way (realTerrain.ts's sampleGrid).
@@ -101,10 +101,11 @@ NDVI_LOW = 0.0
 NDVI_HIGH = 0.90
 
 # Real dates to sample, oldest first, with gaps shrinking as they approach
-# the real 2026 landslide: decades apart in the 1990s-2000s, then years,
-# then months, then the same days already pinned by the mock event history
-# (change-events.json) and the existing before/after Sentinel-1 pair.
-TARGET_DATES = [
+# the present: decades apart in the 1990s-2000s, then years, then months.
+# Zone-agnostic; the trailing dates (the zone's own real before/after SAR
+# pair and its own recorded event history) are appended per zone below,
+# by build_target_dates(), instead of being hardcoded to Teknaf's dates.
+EARLY_TARGET_DATES = [
     "1990-01-15",
     "2000-01-15",
     "2008-01-15",
@@ -119,14 +120,24 @@ TARGET_DATES = [
     "2025-10-01",
     "2026-01-01",
     "2026-04-01",
-    "2026-05-04",  # existing Sentinel-1 "before" date
-    "2026-06-25",  # evt-011 start
-    "2026-07-06",  # evt-015 start (July monsoon event)
-    "2026-07-24",  # evt-018 end
-    "2026-09-14",  # evt-030 start
-    "2026-09-26",  # evt-030 end
-    "2026-11-05",  # existing Sentinel-1 "after" date
 ]
+
+CHANGE_EVENTS_PATH = REPO / "web" / "lib" / "data" / "change-events.json"
+
+
+def build_target_dates(zone_id: str, meta: dict) -> list[str]:
+    """EARLY_TARGET_DATES plus this zone's own real milestones: its real
+    Sentinel-1 before/after dates (build_ground_terrain.py's meta.json) and
+    every real date its own recorded events (change-events.json) start or
+    end on, so the trailing, most-important-to-see-clearly dates are always
+    this zone's own real history, not another zone's copied-over dates."""
+    events = json.loads(CHANGE_EVENTS_PATH.read_text(encoding="utf-8"))
+    event_dates = sorted(
+        {e["dateRangeStart"] for e in events if e["zoneId"] == zone_id}
+        | {e["dateRangeEnd"] for e in events if e["zoneId"] == zone_id}
+    )
+    trailing = sorted({meta["sar_before_date"], *event_dates, meta["sar_after_date"]})
+    return [d for d in EARLY_TARGET_DATES if d < trailing[0]] + trailing
 
 # Widen the search window around a target date until something usable turns
 # up; real archives have real gaps (orbit, cloud, pre-1984 coverage).
@@ -140,10 +151,9 @@ MAX_CANDIDATES = 8
 MIN_VALID_FRACTION = 0.7
 
 
-def load_reference_point():
+def load_ground_meta() -> dict:
     meta_path = GROUND_DATA_ROOT / ZONE_SLUG / "meta.json"
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    return meta["reference_point"]["lon"], meta["reference_point"]["lat"]
+    return json.loads(meta_path.read_text(encoding="utf-8"))
 
 
 def candidate_items(catalog, bbox, target_date: str):
@@ -239,14 +249,17 @@ def try_item(item, bbox, ref_lon, ref_lat):
 
 def main():
     catalog = pystac_client.Client.open(STAC_URL, modifier=planetary_computer.sign_inplace)
-    ref_lon, ref_lat = load_reference_point()
+    meta = load_ground_meta()
+    ref_lon, ref_lat = meta["reference_point"]["lon"], meta["reference_point"]["lat"]
     bbox = gt.padded_lonlat_bbox(ref_lon, ref_lat, HALF_EXTENT)
+    target_dates = build_target_dates(ZONE_ID, meta)
+    print(f"Target dates for {ZONE_SLUG}: {target_dates}")
 
     out_dir = GROUND_DATA_ROOT / ZONE_SLUG / "density_timeline"
     samples = []
     skipped = []
 
-    for target_date in TARGET_DATES:
+    for target_date in target_dates:
         print(f"[{target_date}] searching Landsat Collection 2 L2")
         accepted = None
         for window_days, items in candidate_items(catalog, bbox, target_date):

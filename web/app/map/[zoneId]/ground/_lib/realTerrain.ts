@@ -9,7 +9,7 @@
  * wait, exactly as before this feature existed.
  */
 
-export const GROUND_REAL_ZONE_IDS = ["zone-cht-teknaf"] as const;
+export const GROUND_REAL_ZONE_IDS = ["zone-cht-teknaf", "zone-jamuna-sonatola"] as const;
 
 export type GroundRealZoneId = (typeof GROUND_REAL_ZONE_IDS)[number];
 
@@ -19,6 +19,7 @@ export function hasRealTerrain(zoneId: string): zoneId is GroundRealZoneId {
 
 const SLUG_BY_ZONE_ID: Record<GroundRealZoneId, string> = {
   "zone-cht-teknaf": "teknaf",
+  "zone-jamuna-sonatola": "sonatola",
 };
 
 /** A regular grid of values in world metres, row-major (index = row * width

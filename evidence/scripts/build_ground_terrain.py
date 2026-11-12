@@ -67,8 +67,7 @@ STAC_URL = be.STAC_URL
 DEM_COLLECTION = "cop-dem-glo-30"
 WORLDCOVER_COLLECTION = "esa-worldcover"
 
-ZONE_SLUG = "teknaf"
-ZONE_ID = "zone-cht-teknaf"
+ZONE_SLUG = sys.argv[1] if len(sys.argv) > 1 else "teknaf"
 
 # Grid extents. The Ground View world (web/app/map/[zoneId]/ground/_lib/
 # terrain.ts) walks out to worldRadius=120 and a 50 m skirt beyond that; 180
@@ -184,9 +183,23 @@ def write_grid_bin(grid: np.ndarray, path: Path):
 
 def find_reference_point(catalog, zone: "be.ZoneConfig"):
     print(f"[{zone.slug}] Resolving before/after Sentinel-1 RTC items for the reference point")
-    collection = catalog.get_collection(be.S1_COLLECTION)
-    before_item = collection.get_item(zone.before_id)
-    after_item = collection.get_item(zone.after_id)
+    # Teknaf's pair was hand-picked and pinned on its ZoneConfig already; any
+    # other zone (no before_id/after_id set) gets the same live search
+    # build_evidence.py's own part1_before_after uses for its non-Teknaf
+    # zones, against the same project-wide before/after target dates.
+    if zone.before_id and zone.after_id:
+        collection = catalog.get_collection(be.S1_COLLECTION)
+        before_item = collection.get_item(zone.before_id)
+        after_item = collection.get_item(zone.after_id)
+    else:
+        before_item = be.find_nearest_item(catalog, zone.aoi_bbox, be.BEFORE_SEARCH_WINDOW, be.BEFORE_TARGET)
+        after_item = be.find_nearest_item(catalog, zone.aoi_bbox, be.AFTER_SEARCH_WINDOW, be.AFTER_TARGET)
+        if before_item is None or after_item is None:
+            raise RuntimeError(
+                f"[{zone.slug}] no Sentinel-1 RTC scene found near the target dates "
+                f"(before={before_item is not None}, after={after_item is not None})"
+            )
+        print(f"  found before={before_item.id} ({be.date_of(before_item)}), after={after_item.id} ({be.date_of(after_item)})")
 
     before_db, before_transform, before_crs = be.read_db_window(
         before_item, zone.aoi_bbox, return_transform=True
@@ -227,6 +240,8 @@ def find_reference_point(catalog, zone: "be.ZoneConfig"):
         "component_size_px": component_size,
         "before_scene_id": before_item.id,
         "after_scene_id": after_item.id,
+        "before_date": zone.before_date or be.date_of(before_item),
+        "after_date": zone.after_date or be.date_of(after_item),
         "diff_db": diff_db,
         "diff_transform": before_transform,
         "diff_crs": before_crs,
@@ -360,13 +375,13 @@ def main():
     write_grid_bin(disturbance["grid"], out_dir / "disturbance.bin")
 
     meta = {
-        "zone_id": ZONE_ID,
+        "zone_id": zone.zone_id,
         "reference_point": {"lon": round(ref_lon, 6), "lat": round(ref_lat, 6)},
         "reference_disturbance_component_px": ref_point["component_size_px"],
         "sar_before_scene_id": ref_point["before_scene_id"],
         "sar_after_scene_id": ref_point["after_scene_id"],
-        "sar_before_date": zone.before_date,
-        "sar_after_date": zone.after_date,
+        "sar_before_date": ref_point["before_date"],
+        "sar_after_date": ref_point["after_date"],
         "dem_item_id": height["dem_item_id"],
         "worldcover_item_id": density["worldcover_item_id"],
         "reference_elevation_m": height["reference_elevation_m"],

@@ -162,6 +162,19 @@ ZONES = [
         aoi_bbox=(92.126, 21.534, 92.214, 21.625),
         gibs_bbox=(91.796, 21.204, 92.544, 21.955),
     ),
+    # First Jamuna (river erosion) zone, added for Ground View's real-terrain
+    # treatment (build_ground_terrain.py / build_ground_density_timeline.py),
+    # not yet built into a full evidence pack. aoi_bbox is the zone polygon's
+    # own bbox (web/lib/data/zones.geojson) padded by about 0.01 degree;
+    # before_id/after_id are left unset so the same live Sentinel-1 search
+    # used for the other non-Teknaf zones runs here too.
+    ZoneConfig(
+        zone_id="zone-jamuna-sonatola",
+        zone_name="Jamuna riverbank, Sonatola",
+        slug="sonatola",
+        aoi_bbox=(89.514, 24.711, 89.586, 24.789),
+        gibs_bbox=(89.2, 24.4, 89.9, 25.1),
+    ),
 ]
 
 # Teknaf's pack already exists, was hand-verified, and is not rebuilt by

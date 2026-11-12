@@ -8,7 +8,7 @@ import { prefersReducedMotion } from "@/lib/design-tokens";
 import { format, t, zoneDisplayName } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { translations } from "@/lib/translations";
-import { severityToBand } from "@/lib/types";
+import { severityToBand, type ZoneKind } from "@/lib/types";
 import { useMapData } from "../../../_lib/useMapData";
 import { dateRangeOfEvents, dayIndexToIso, isoToDayIndex, zoneEventHistory } from "../../../_lib/severity";
 import { ExploreScrubber } from "../../_components/ExploreScrubber";
@@ -24,13 +24,19 @@ import { useWalkInput } from "./useWalkInput";
 /** Title/body for the HUD card shown when the visitor is near a real-data
  *  stop (_lib/terrain.ts realTerrainStops), filled from that zone's real
  *  ground-data meta rather than any invented number. */
-function stopCopy(stop: RealDataStop, realTerrain: RealTerrain, locale: Locale): { title: string; body: string } {
+function stopCopy(
+  stop: RealDataStop,
+  realTerrain: RealTerrain,
+  zoneKind: ZoneKind,
+  locale: Locale,
+): { title: string; body: string } {
   const copy = translations.groundView;
   if (stop.kind === "disturbance") {
     const areaHa = (realTerrain.disturbanceComponentPx / 100).toFixed(1);
+    const body = zoneKind === "erosion" ? copy.realStopDisturbanceBodyErosion : copy.realStopDisturbanceBody;
     return {
       title: t(copy.realStopDisturbanceTitle, locale),
-      body: format(t(copy.realStopDisturbanceBody, locale), {
+      body: format(t(body, locale), {
         areaHa,
         before: formatCitationDate(realTerrain.sarBeforeDate),
         after: formatCitationDate(realTerrain.sarAfterDate),
@@ -208,7 +214,8 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
 
   const name = zoneDisplayName(zone.properties, locale);
   const copy = translations.groundView;
-  const nearStopCopy = nearStop && realTerrain ? stopCopy(nearStop, realTerrain, locale) : null;
+  const nearStopCopy =
+    nearStop && realTerrain ? stopCopy(nearStop, realTerrain, zone.properties.kind, locale) : null;
   const showPrompt = !interacted && (touchUi || !locked);
   // Before the zone's first recorded event there is nothing to estimate.
   const recorded = history.length > 0 && day >= isoToDayIndex(history[0].dateRangeEnd);
@@ -313,7 +320,17 @@ export function GroundView({ zoneId, locale }: GroundViewProps) {
             className="pointer-events-auto flex w-full flex-col gap-2 rounded-xs bg-surface/95 px-3 py-2.5 shadow-map"
           >
             <p className="text-[0.8125rem] leading-[1.45] text-ink-muted [&:lang(bn)]:leading-[1.6]">
-              {format(t(realTerrain ? copy.captionReal : copy.caption, locale), { name })}
+              {format(
+                t(
+                  realTerrain
+                    ? zone.properties.kind === "erosion"
+                      ? copy.captionRealErosion
+                      : copy.captionReal
+                    : copy.caption,
+                  locale,
+                ),
+                { name },
+              )}
             </p>
 
             {history.length === 0 ? (

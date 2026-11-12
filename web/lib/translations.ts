@@ -670,6 +670,13 @@ export const translations = {
       en: "A walk through {name}'s real measured terrain: hill height from satellite elevation data, tree cover scrubbable across decades of real satellite imagery, and the cleared ground from a real before/after radar comparison. The road and house are still stylized, not satellite imagery.",
       bn: "{name}-এর প্রকৃত পরিমাপ করা ভূখণ্ড: স্যাটেলাইট উচ্চতা তথ্য থেকে পাহাড়ের উচ্চতা, কয়েক দশকের প্রকৃত স্যাটেলাইট চিত্র জুড়ে স্ক্রাব করা গাছের ঘনত্ব, আর প্রকৃত আগে-পরে রাডার তুলনা থেকে পরিষ্কার হওয়া জমি। রাস্তা আর বাড়ি এখনও শৈলীকৃত, এগুলো স্যাটেলাইট ছবি নয়।",
     },
+    // Same as captionReal, worded for an erosion-kind zone (riverbank, not
+    // hillside): ZoneExplore/GroundView pick between the two by the zone's
+    // own `kind` property, not by zone id.
+    captionRealErosion: {
+      en: "A walk through {name}'s real measured terrain: ground height from satellite elevation data, land cover scrubbable across decades of real satellite imagery, and the riverbank lost to erosion from a real before/after radar comparison. The road and house are still stylized, not satellite imagery.",
+      bn: "{name}-এর প্রকৃত পরিমাপ করা ভূখণ্ড: স্যাটেলাইট উচ্চতা তথ্য থেকে মাটির উচ্চতা, কয়েক দশকের প্রকৃত স্যাটেলাইট চিত্র জুড়ে স্ক্রাব করা ভূমি আবরণ, আর প্রকৃত আগে-পরে রাডার তুলনা থেকে নদীতে ভেঙে যাওয়া পাড়। রাস্তা আর বাড়ি এখনও শৈলীকৃত, এগুলো স্যাটেলাইট ছবি নয়।",
+    },
     // Shown only when the visitor walks near one of a real-terrain zone's
     // fixed stops (_lib/terrain.ts realTerrainStops). {areaHa}/{before}/
     // {after}/{degrees} are filled from the zone's real ground-data meta.
@@ -680,6 +687,11 @@ export const translations = {
     realStopDisturbanceBody: {
       en: "Sentinel-1 radar recorded a real backscatter drop over about {areaHa} ha around this spot between {before} and {after}, the signature of ground that was cleared.",
       bn: "{before} থেকে {after} এর মধ্যে এই স্থানের প্রায় {areaHa} হেক্টর জুড়ে সেন্টিনেল-১ রাডার একটি প্রকৃত ব্যাকস্ক্যাটার হ্রাস রেকর্ড করেছে, যা পরিষ্কার হওয়া জমির চিহ্ন।",
+    },
+    // Same as realStopDisturbanceBody, worded for an erosion-kind zone.
+    realStopDisturbanceBodyErosion: {
+      en: "Sentinel-1 radar recorded a real backscatter drop over about {areaHa} ha around this spot between {before} and {after}, the signature of land lost to the river.",
+      bn: "{before} থেকে {after} এর মধ্যে এই স্থানের প্রায় {areaHa} হেক্টর জুড়ে সেন্টিনেল-১ রাডার একটি প্রকৃত ব্যাকস্ক্যাটার হ্রাস রেকর্ড করেছে, যা নদীতে হারিয়ে যাওয়া জমির চিহ্ন।",
     },
     realStopSlopeTitle: {
       en: "Steepest real slope here",
