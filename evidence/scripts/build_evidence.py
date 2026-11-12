@@ -178,16 +178,27 @@ def sign_item(item):
     return planetary_computer.sign(item)
 
 
-def read_db_window(item, bbox_lonlat):
-    """Read the VV band over a lon/lat bbox and return it in dB (NaN = invalid)."""
+def read_db_window(item, bbox_lonlat, return_transform: bool = False):
+    """Read the VV band over a lon/lat bbox and return it in dB (NaN = invalid).
+
+    With return_transform=True, also returns the window's affine transform
+    and the source CRS, so a caller can convert pixel coordinates back to
+    real-world coordinates (used by build_ground_terrain.py to locate a
+    pixel it found interesting).
+    """
     item = sign_item(item)
     href = item.assets["vv"].href
     with rasterio.open(href) as src:
         bounds_native = transform_bounds("EPSG:4326", src.crs, *bbox_lonlat)
         win = from_bounds(*bounds_native, transform=src.transform)
         data = src.read(1, window=win).astype(np.float32)
+        win_transform = rasterio.windows.transform(win, src.transform)
+        crs = src.crs
     amp = np.where(data > 0, data, np.nan)
-    return 10 * np.log10(amp)
+    db = 10 * np.log10(amp)
+    if return_transform:
+        return db, win_transform, crs
+    return db
 
 
 def crop_to_common(*arrays):
