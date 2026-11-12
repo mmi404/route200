@@ -12,6 +12,7 @@ import { format, t, zoneDisplayName } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { translations } from "@/lib/translations";
 import type { ZoneStatus } from "../_lib/severity";
+import { hasEvidencePack } from "../[zoneId]/evidence/_lib/available";
 import { StripChart } from "./StripChart";
 import type { ChangeEvent } from "@/lib/types";
 
@@ -124,6 +125,14 @@ export function InspectPanel({
         <ButtonLink href={`/alerts?zone=${properties.id}`} size="md" variant="secondary">
           {t(copy.getAlertsForThisZone, locale)}
         </ButtonLink>
+        {/* Secondary (text) style, never a second solid button. Only offered
+            for zones that actually have a real evidence pack, so no zone
+            links to an empty page. */}
+        {hasEvidencePack(properties.id) && (
+          <ButtonLink href={`/map/${properties.id}/evidence`} size="md" variant="secondary">
+            {t(copy.seeSatelliteEvidence, locale)}
+          </ButtonLink>
+        )}
       </div>
     </div>
   );

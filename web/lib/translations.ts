@@ -493,6 +493,13 @@ export const translations = {
       en: "Explore in 3D",
       bn: "৩ডি-তে দেখুন",
     },
+    // Only shown for zones with a real evidence pack (see
+    // app/map/[zoneId]/evidence/_lib/available.ts); the page itself owns
+    // the rest of its copy under zoneEvidence below.
+    seeSatelliteEvidence: {
+      en: "See the satellite evidence",
+      bn: "স্যাটেলাইটের প্রমাণ দেখুন",
+    },
     // StripChart.tsx
     noEventsRecorded: {
       en: "No change events recorded yet for this zone.",
@@ -648,6 +655,346 @@ export const translations = {
     caption: {
       en: "An illustrated walk through {name}, built from its real recorded history. The trees, road and house are stylized, not satellite imagery.",
       bn: "{name}-এর আসল রেকর্ড করা ইতিহাস থেকে তৈরি একটি চিত্রিত দৃশ্য। গাছ, রাস্তা আর বাড়ি শৈলীকৃত, এগুলো স্যাটেলাইট ছবি নয়।",
+    },
+  },
+
+  // ---------------------------------------------------------------------
+  // zoneEvidence: app/map/[zoneId]/evidence/page.tsx and _components/*.
+  // The real satellite evidence page for zones that have a pack under
+  // public/evidence/ (only Teknaf so far), plus its clearly separated
+  // "where this goes next" concept preview. Every date and number spliced
+  // into these templates comes from the pack's manifest.json, formatted
+  // by the caller (formatCitationDate / formatStatNumber). Reuses
+  // zoneExplore's backToMap and notFoundHeading.
+  // ---------------------------------------------------------------------
+  zoneEvidence: {
+    // page.tsx metadata, and the page's own eyebrow
+    title: {
+      en: "Satellite evidence",
+      bn: "স্যাটেলাইটের প্রমাণ",
+    },
+    loading: {
+      en: "Loading satellite evidence…",
+      bn: "স্যাটেলাইটের প্রমাণ লোড হচ্ছে…",
+    },
+    // EvidenceReport.tsx header
+    lede: {
+      en: "Real Sentinel-1 radar over this hillside before and after the 2026 monsoon, and a day-by-day record of the July 2026 disaster. Every image and figure on this page is computed from public satellite data. None of it is simulated.",
+      bn: "২০২৬ সালের বর্ষার আগে আর পরে এই পাহাড়ি ঢালের ওপর আসল Sentinel-1 রাডারের ছবি, সাথে জুলাই ২০২৬-এর দুর্যোগের দিন ধরে ধরে রেকর্ড। এই পাতার প্রতিটা ছবি আর সংখ্যা উন্মুক্ত স্যাটেলাইট তথ্য থেকে হিসাব করা, কোনোটাই বানানো নয়।",
+    },
+    // {date} is formatCitationDate output of the manifest's `generated`.
+    builtOn: {
+      en: "Evidence pack built {date}",
+      bn: "প্রমাণ সংকলন তৈরি: {date}",
+    },
+    // Section 01
+    beforeAfterLabel: {
+      en: "Before and after",
+      bn: "আগে আর পরে",
+    },
+    // {days} is the manifest's gap_days, locale-formatted.
+    beforeAfterHeading: {
+      en: "The same hillside, {days} days apart",
+      bn: "একই পাহাড়ি ঢাল, {days} দিনের ব্যবধানে",
+    },
+    beforeAfterBody: {
+      en: "Each image is one radar pass over Teknaf, shown as backscatter: how much of the radar's own signal bounces back. Brighter pixels return more (rough ground, dense vegetation, buildings), darker pixels return less (smooth bare soil, still water). Radar sees through cloud and works at night, so both dates are clear views of the ground.",
+      bn: "প্রতিটা ছবি টেকনাফের ওপর দিয়ে রাডারের একেকটা পাস, দেখানো হয়েছে ব্যাকস্ক্যাটার হিসেবে, অর্থাৎ রাডারের পাঠানো সংকেতের কতটুকু ফিরে আসে। যেখানে বেশি ফেরে সেখানে পিক্সেল উজ্জ্বল (এবড়োখেবড়ো মাটি, ঘন গাছপালা, ঘরবাড়ি), যেখানে কম ফেরে সেখানে গাঢ় (মসৃণ খোলা মাটি, স্থির পানি)। রাডার মেঘ ভেদ করে দেখে, রাতেও কাজ করে, তাই দুটো তারিখেই মাটির পরিষ্কার ছবি পাওয়া গেছে।",
+    },
+    // {date} is formatCitationDate output.
+    beforeCaption: {
+      en: "Before · {date}",
+      bn: "আগে · {date}",
+    },
+    afterCaption: {
+      en: "After · {date}",
+      bn: "পরে · {date}",
+    },
+    beforeAlt: {
+      en: "Radar backscatter over this zone on {date}, before the monsoon, in grayscale.",
+      bn: "{date}-এ, বর্ষার আগে, এই এলাকার ওপর রাডার ব্যাকস্ক্যাটার, সাদাকালোয়।",
+    },
+    afterAlt: {
+      en: "Radar backscatter over the same area on {date}, after the monsoon, in grayscale.",
+      bn: "{date}-এ, বর্ষার পরে, একই এলাকার ওপর রাডার ব্যাকস্ক্যাটার, সাদাকালোয়।",
+    },
+    // SourceCitation detail. {before} and {after} are scene IDs.
+    scenePairDetail: {
+      en: "before scene {before}, after scene {after}",
+      bn: "আগের দৃশ্য {before}, পরের দৃশ্য {after}",
+    },
+    // {window} is the filter size from the manifest's despeckle_note, e.g.
+    // "15×15", locale-formatted.
+    despeckleNote: {
+      en: "Each date was smoothed with a {window} median filter before the two were compared. This is standard radar speckle reduction, not a trained model.",
+      bn: "তুলনার আগে প্রতিটা তারিখের ছবি {window} মিডিয়ান ফিল্টারে মসৃণ করা হয়েছে। এটা রাডারের দানাদার নয়েজ কমানোর প্রচলিত ধাপ, কোনো প্রশিক্ষিত মডেল নয়।",
+    },
+    // Section 02
+    changeLabel: {
+      en: "What changed",
+      bn: "কী বদলাল",
+    },
+    changeHeading: {
+      en: "Where the radar return dropped, and where it rose",
+      bn: "কোথায় রাডারের ফেরত সংকেত কমেছে, কোথায় বেড়েছে",
+    },
+    changeBody: {
+      en: "This map subtracts the before image from the after image, in decibels. A drop is consistent with vegetation or structures being removed. A rise can mean new structures, or rougher or wetter ground. A change in the radar return shows that the surface changed, not what changed it: field checks still decide that.",
+      bn: "এই মানচিত্রে পরের ছবি থেকে আগের ছবি ডেসিবেলে বিয়োগ করা হয়েছে। সংকেত কমে যাওয়ার সাথে গাছপালা বা কোনো কাঠামো সরে যাওয়ার মিল আছে। বেড়ে যাওয়া মানে হতে পারে নতুন কাঠামো, কিংবা আরও এবড়োখেবড়ো বা ভেজা মাটি। রাডারের সংকেত বদলালে বোঝা যায় ভূমির ওপরটা বদলেছে, কিন্তু কী কারণে বদলেছে তা বোঝা যায় না, সেটা ঠিক করতে এখনো মাঠে গিয়ে যাচাই লাগে।",
+    },
+    legendRed: {
+      en: "Red: backscatter dropped, consistent with vegetation or structure removal.",
+      bn: "লাল: ব্যাকস্ক্যাটার কমেছে, গাছপালা বা কাঠামো সরে যাওয়ার সাথে মেলে।",
+    },
+    legendBlue: {
+      en: "Blue: backscatter rose.",
+      bn: "নীল: ব্যাকস্ক্যাটার বেড়েছে।",
+    },
+    legendNeutral: {
+      en: "Pale: little change. White: no data.",
+      bn: "ফ্যাকাশে: সামান্য পরিবর্তন। সাদা: তথ্য নেই।",
+    },
+    diffAlt: {
+      en: "Difference map between {before} and {after}: red where radar backscatter dropped, blue where it rose.",
+      bn: "{before} আর {after}-এর পার্থক্যের মানচিত্র: যেখানে রাডার ব্যাকস্ক্যাটার কমেছে সেখানে লাল, যেখানে বেড়েছে সেখানে নীল।",
+    },
+    statMeanLabel: {
+      en: "Average change across the whole crop",
+      bn: "পুরো ছবিজুড়ে গড় পরিবর্তন",
+    },
+    // The "3 dB" cut-off is the one baked into the manifest's own field
+    // names (pct_pixels_dropped_gt3db / pct_pixels_risen_gt3db).
+    statDroppedLabel: {
+      en: "of pixels dropped by more than 3 dB",
+      bn: "পিক্সেলে সংকেত ৩ dB-এর বেশি কমেছে",
+    },
+    statRisenLabel: {
+      en: "of pixels rose by more than 3 dB",
+      bn: "পিক্সেলে সংকেত ৩ dB-এর বেশি বেড়েছে",
+    },
+    // {count} is valid_pixel_count, locale-formatted.
+    statPixelsSource: {
+      en: "{count} valid pixels",
+      bn: "{count}টি বৈধ পিক্সেল",
+    },
+    thresholdNote: {
+      en: "The 3 dB cut-off is a simple stated convention, not a calibrated decision rule.",
+      bn: "৩ dB-এর সীমাটা একটা সরল, ঘোষিত নিয়ম, মেপে ঠিক করা কোনো সিদ্ধান্তের মানদণ্ড নয়।",
+    },
+    // Section 03
+    julyLabel: {
+      en: "The July 2026 event",
+      bn: "জুলাই ২০২৬-এর দুর্যোগ",
+    },
+    julyHeading: {
+      en: "Through the disaster, pass by pass and day by day",
+      bn: "দুর্যোগের ভেতর দিয়ে, পাস ধরে আর দিন ধরে",
+    },
+    // {start}/{end}: the manifest's event window; {first}/{last}: the
+    // daily strip's first and last dates; {passes}: number of SAR passes.
+    julyBody: {
+      en: "Between {start} and {end}, monsoon rain set off landslides and flooding across the Chattogram Hill Tracts, Teknaf included. Below are the {passes} radar passes over this zone in that stretch, then the optical image and rainfall for every day from {first} to {last}.",
+      bn: "{start} থেকে {end} পর্যন্ত বর্ষার ভারী বৃষ্টিতে চট্টগ্রাম পার্বত্য অঞ্চলজুড়ে পাহাড়ধস আর বন্যা হয়, টেকনাফও তার বাইরে ছিল না। নিচে আছে সেই সময়ে এই এলাকার ওপর দিয়ে যাওয়া {passes}টি রাডার পাস, তারপর {first} থেকে {last} পর্যন্ত প্রতিদিনের অপটিক্যাল ছবি আর বৃষ্টিপাত।",
+    },
+    radarPassesHeading: {
+      en: "Radar passes",
+      bn: "রাডার পাস",
+    },
+    radarPassAlt: {
+      en: "Sentinel-1 radar backscatter over this zone on {date}, in grayscale.",
+      bn: "{date}-এ এই এলাকার ওপর Sentinel-1 রাডার ব্যাকস্ক্যাটার, সাদাকালোয়।",
+    },
+    radarPassDuringBlackout: {
+      en: "No optical image this day. The radar still saw the ground.",
+      bn: "এদিন কোনো অপটিক্যাল ছবি নেই, রাডার তবুও মাটি দেখেছে।",
+    },
+    // {ids} is the comma-joined list of scene IDs.
+    radarScenesDetail: {
+      en: "scenes {ids}",
+      bn: "দৃশ্য {ids}",
+    },
+    dailyHeading: {
+      en: "Optical and rainfall, every day",
+      bn: "প্রতিদিনের অপটিক্যাল ছবি আর বৃষ্টি",
+    },
+    dailyBody: {
+      en: "The optical row is what an ordinary camera in orbit saw: true-colour imagery from the VIIRS instrument. The rain row is NASA's IMERG precipitation rate for the same day. Both tiles cover a wider area around Cox's Bazar and Teknaf than the radar crops above. Dots mark the days a radar pass came over.",
+      bn: "অপটিক্যাল সারিতে আছে কক্ষপথের একটা সাধারণ ক্যামেরা যা দেখেছে: VIIRS যন্ত্রের আসল রঙের ছবি। বৃষ্টির সারিতে আছে একই দিনের NASA IMERG বৃষ্টিপাতের হার। ওপরের রাডারের ছবির চেয়ে এই দুই সারির ছবি কক্সবাজার আর টেকনাফের আশেপাশের আরও বড় এলাকা জুড়ে। যেদিন রাডার পাস ছিল, সেদিন একটা বিন্দু দিয়ে চিহ্নিত।",
+    },
+    dailyScrollHint: {
+      en: "Swipe sideways to see every day.",
+      bn: "সব দিন দেখতে পাশে সরান।",
+    },
+    rowDay: {
+      en: "July",
+      bn: "জুলাই",
+    },
+    rowOptical: {
+      en: "Optical (VIIRS)",
+      bn: "অপটিক্যাল (VIIRS)",
+    },
+    rowCloud: {
+      en: "Cloud-like pixels",
+      bn: "মেঘের মতো পিক্সেল",
+    },
+    rowRain: {
+      en: "Rain rate (IMERG)",
+      bn: "বৃষ্টির হার (IMERG)",
+    },
+    rowRadar: {
+      en: "Radar pass",
+      bn: "রাডার পাস",
+    },
+    eventWindowBracket: {
+      en: "Disaster window",
+      bn: "দুর্যোগের সময়",
+    },
+    blackoutBracket: {
+      en: "No optical coverage",
+      bn: "অপটিক্যাল ছবি নেই",
+    },
+    // Printed inside each blacked-out optical tile, so it has to be short.
+    noCoverageTile: {
+      en: "none",
+      bn: "নেই",
+    },
+    noCoverageTileTitle: {
+      en: "No satellite coverage on {date}",
+      bn: "{date}-এ কোনো স্যাটেলাইট ছবি নেই",
+    },
+    opticalAlt: {
+      en: "VIIRS true-colour image, {date}",
+      bn: "VIIRS-এর আসল রঙের ছবি, {date}",
+    },
+    rainAlt: {
+      en: "IMERG precipitation rate, {date}",
+      bn: "IMERG বৃষ্টিপাতের হার, {date}",
+    },
+    radarPassMark: {
+      en: "Sentinel-1 pass on {date}",
+      bn: "{date}-এ Sentinel-1 পাস",
+    },
+    cloudProxyNote: {
+      en: "Cloud-like pixels is a rough proxy: the share of very bright pixels in the optical tile, which also catches bright ground. It is not a calibrated cloud mask.",
+      bn: "মেঘের মতো পিক্সেলের হিসাবটা মোটা দাগের: অপটিক্যাল ছবিতে খুব উজ্জ্বল পিক্সেলের ভাগ, যার মধ্যে উজ্জ্বল মাটিও ধরা পড়ে। এটা মাপজোখ করা মেঘের মাস্ক নয়।",
+    },
+    // {count} is the number of blacked-out days, locale-formatted.
+    blackoutHeading: {
+      en: "{count} days with no optical image at all",
+      bn: "টানা {count} দিন কোনো অপটিক্যাল ছবিই নেই",
+    },
+    // {start}/{end}: the blackout run; {dates}: the radar passes from the
+    // start of the blackout to the end of the event window.
+    blackoutBody: {
+      en: "From {start} to {end}, right inside the disaster window, the optical satellite returned nothing usable over this area. This is exactly why Route200 is built on radar rather than optical imagery: monsoon cloud and missed coverage can leave an ordinary camera blind for days, at the moment the information matters most. Radar kept seeing the ground through the gap and after it: Sentinel-1 passed over on {dates}.",
+      bn: "{start} থেকে {end} পর্যন্ত, ঠিক দুর্যোগের মাঝখানে, অপটিক্যাল স্যাটেলাইট এই এলাকার কোনো ব্যবহারযোগ্য ছবিই দিতে পারেনি। Route200 যে অপটিক্যাল ছবির বদলে রাডারের ওপর দাঁড়িয়ে আছে, তার কারণ ঠিক এটাই: বর্ষার মেঘ আর ছুটে যাওয়া কভারেজ একটা সাধারণ ক্যামেরাকে দিনের পর দিন অন্ধ করে রাখতে পারে, আর সেটা ঘটে ঠিক তখনই যখন তথ্যটা সবচেয়ে বেশি দরকার। রাডার কিন্তু এই ফাঁকের মধ্যে আর পরেও মাটি দেখে গেছে: Sentinel-1 এই এলাকার ওপর দিয়ে গেছে {dates} তারিখে।",
+    },
+    manifestNoteLabel: {
+      en: "Data note, from the evidence manifest",
+      bn: "প্রমাণ সংকলনের ম্যানিফেস্ট থেকে তথ্য-নোট (মূল ইংরেজিতে)",
+    },
+    methodHeading: {
+      en: "How this was made",
+      bn: "কীভাবে তৈরি হলো",
+    },
+    methodBody: {
+      en: "All radar is real Sentinel-1 data, terrain-corrected and read directly from Microsoft Planetary Computer. All optical and rainfall tiles are real daily NASA GIBS imagery. Every figure here comes from plain arithmetic on those pixels: conversion to decibels, a median filter, subtraction, averaging and a threshold. No machine learning model was trained or run to produce any of it.",
+      bn: "সব রাডারের ছবি আসল Sentinel-1 তথ্য, ভূপ্রকৃতি অনুযায়ী সংশোধন করা, সরাসরি Microsoft Planetary Computer থেকে পড়া। সব অপটিক্যাল আর বৃষ্টির ছবি NASA GIBS-এর আসল দৈনিক ছবি। এখানকার প্রতিটা সংখ্যা ওই পিক্সেলগুলোর ওপর সাধারণ হিসাব থেকে এসেছে: ডেসিবেলে রূপান্তর, মিডিয়ান ফিল্টার, বিয়োগ, গড় আর একটা সীমারেখা। এর কোনোটার জন্যই কোনো মেশিন লার্নিং মডেল প্রশিক্ষণ দেওয়া বা চালানো হয়নি।",
+    },
+    // Section 04: ConceptPreview.tsx. Everything here is explicitly a
+    // concept, not a working feature. conceptBadge stays pinned while the
+    // section is on screen.
+    conceptBadge: {
+      en: "Concept preview, not a trained model",
+      bn: "ধারণার নমুনা, প্রশিক্ষিত মডেল নয়",
+    },
+    conceptLabel: {
+      en: "Where this goes next",
+      bn: "এরপর কোন দিকে",
+    },
+    conceptHeading: {
+      en: "From measuring change to estimating risk",
+      bn: "পরিবর্তন মাপা থেকে ঝুঁকি আঁচ করা",
+    },
+    conceptBody: {
+      en: "Everything above is measurement: what changed on the ground, and when. The next step is a model that learns from those measurements to estimate which slopes are most likely to fail next. The differencing pipeline on this page is the foundation that model would sit on.",
+      bn: "ওপরের সবকিছুই মাপজোখ: মাটিতে কী বদলেছে, আর কবে। পরের ধাপ একটা মডেল, যেটা এই মাপজোখ থেকে শিখে আঁচ করবে কোন ঢাল এরপর ধসে পড়ার সম্ভাবনা সবচেয়ে বেশি। এই পাতার পার্থক্য-নির্ণয়ের প্রক্রিয়াটাই হবে সেই মডেলের ভিত।",
+    },
+    conceptStatus: {
+      en: "None of this has been trained yet. No model exists today, and nothing in this section is a prediction.",
+      bn: "এর কোনোটাই এখনো প্রশিক্ষণ দেওয়া হয়নি। আজ পর্যন্ত কোনো মডেল নেই, আর এই অংশের কোনো কিছুই পূর্বাভাস নয়।",
+    },
+    plannedInputsHeading: {
+      en: "Planned inputs",
+      bn: "পরিকল্পিত ইনপুট",
+    },
+    inputSarTitle: {
+      en: "Radar backscatter trend",
+      bn: "রাডার ব্যাকস্ক্যাটারের ধারা",
+    },
+    inputSarBody: {
+      en: "How the radar return over each slope changes from pass to pass: the same measurement shown above, from Sentinel-1 today and NISAR GCOV as the engine moves onto it.",
+      bn: "প্রতিটা ঢালের ওপর রাডারের ফেরত সংকেত পাস থেকে পাসে কীভাবে বদলায়: ওপরে দেখানো ঠিক সেই মাপ, আজ Sentinel-1 থেকে, আর ইঞ্জিন NISAR GCOV-এ গেলে সেখান থেকে।",
+    },
+    inputSlopeTitle: {
+      en: "Slope and aspect",
+      bn: "ঢাল আর ঢালের দিক",
+    },
+    inputSlopeBody: {
+      en: "How steep each slope is and which way it faces, derived from the Copernicus GLO-30 elevation model.",
+      bn: "প্রতিটা ঢাল কতটা খাড়া আর কোন দিকে মুখ করা, Copernicus GLO-30 উচ্চতা মডেল থেকে বের করা।",
+    },
+    inputRainTitle: {
+      en: "Rainfall accumulation",
+      bn: "জমে ওঠা বৃষ্টিপাত",
+    },
+    inputRainBody: {
+      en: "Rain totals over the days before each pass, from NASA IMERG, the same rainfall source as the daily strip above.",
+      bn: "প্রতিটা পাসের আগের কয়েক দিনের মোট বৃষ্টি, NASA IMERG থেকে, ওপরের দৈনিক সারির বৃষ্টির তথ্যও সেখান থেকেই।",
+    },
+    labelsHeading: {
+      en: "Training labels",
+      bn: "প্রশিক্ষণের লেবেল",
+    },
+    labelsBody: {
+      en: "Landslides recorded in BDRCS and UN situation reports for the July 2026 event, and NASA's COOLR global landslide catalog, whose coverage of Bangladesh still has to be checked.",
+      bn: "জুলাই ২০২৬-এর ঘটনা নিয়ে BDRCS আর জাতিসংঘের পরিস্থিতি প্রতিবেদনে লেখা পাহাড়ধসগুলো, আর NASA-র COOLR বৈশ্বিক পাহাড়ধস তালিকা, যেটা বাংলাদেশকে কতটা ধরে তা এখনো যাচাই করা বাকি।",
+    },
+    gaugeHeading: {
+      en: "What a readout could look like",
+      bn: "ফলাফলটা দেখতে কেমন হতে পারে",
+    },
+    gaugeIllustrative: {
+      en: "Illustrative example, not a real prediction",
+      bn: "শুধু উদাহরণ, আসল পূর্বাভাস নয়",
+    },
+    gaugeLabel: {
+      en: "Example slope-failure risk score for one zone",
+      bn: "একটা এলাকার ঢাল ধসের ঝুঁকির উদাহরণ স্কোর",
+    },
+    // {score} is the illustrative number, {band} its severity band word.
+    gaugeAriaLabel: {
+      en: "Illustrative gauge reading {score} out of 100, in the {band} band. Not a real prediction.",
+      bn: "উদাহরণ হিসেবে ১০০-এর মধ্যে {score}, {band} স্তরে। আসল পূর্বাভাস নয়।",
+    },
+    gaugeFootnote: {
+      en: "Like every Route200 output, a real score would ship as decision support, with its sources and limits shown beside it.",
+      bn: "Route200-এর অন্য সব ফলাফলের মতো, আসল স্কোরও আসবে সিদ্ধান্ত নেওয়ার সহায়ক তথ্য হিসেবে, পাশে তার সূত্র আর সীমাবদ্ধতা লেখা থাকবে।",
+    },
+    // EvidenceUnavailable.tsx: every zone without a pack.
+    unavailableHeading: {
+      en: "No evidence pack for this zone yet",
+      bn: "এই এলাকার জন্য এখনো কোনো প্রমাণ সংকলন নেই",
+    },
+    // {name} is this zone's display name.
+    unavailableBody: {
+      en: "Real before-and-after radar evidence has been built for one zone so far. {name} will get its own once its scenes are pulled and checked. Until then this page stays empty rather than showing anything made up.",
+      bn: "এখন পর্যন্ত শুধু একটা এলাকার জন্য আগে-পরের আসল রাডার প্রমাণ তৈরি হয়েছে। {name}-এর দৃশ্যগুলো নামিয়ে যাচাই করা হলে এটারও নিজস্ব প্রমাণ আসবে। ততদিন এই পাতা ফাঁকা থাকবে, বানানো কিছু দেখানো হবে না।",
+    },
+    // {name} is the display name of a zone that does have a pack.
+    unavailableSeeOther: {
+      en: "See the evidence for {name}",
+      bn: "{name}-এর প্রমাণ দেখুন",
     },
   },
 

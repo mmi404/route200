@@ -67,6 +67,10 @@ This is closer to ordinary image differencing than to interferometry, and it's t
 - Nginx + GitHub Actions + a VPS/Cloudflare for the web track.
 - Retries and local caching around every upstream data fetch, so a transient outage in one source never takes the whole service down.
 
+## 7. Planned: trained risk prediction
+
+Not built yet. The change-detection engine in section 2 measures what has already changed; a trained model would sit on top of it and estimate which slopes are most likely to fail next. Its planned inputs are the SAR backscatter trend the engine already produces, slope and aspect derived from the Copernicus GLO-30 DEM, and rainfall accumulation from NASA IMERG. Training labels would come from the BDRCS and UN situation reports for the July 2026 Chattogram event and from NASA's COOLR landslide catalog, whose coverage of Bangladesh still has to be confirmed. No model has been trained, tuned or tested so far: the web app shows this only as a clearly labelled concept preview on the zone evidence page, with an illustrative score, never as a real prediction. Any real output would follow the same rule as every other Route200 figure, shipped as decision support with its sources and limitations stated.
+
 ## Risks
 
 - **NISAR data maturity is unverified as of this writing.** The Sentinel-1 fallback keeps the pipeline functional regardless of how that resolves.
