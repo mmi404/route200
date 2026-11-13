@@ -1,0 +1,7 @@
+file 'nc_1.png'
+duration 3
+file 'nc_2.png'
+duration 3
+file 'nc_3.png'
+duration 6
+file 'nc_3.png'

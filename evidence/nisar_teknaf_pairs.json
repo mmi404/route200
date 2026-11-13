@@ -1,0 +1,47 @@
+[
+  {
+    "before": "2026-06-30",
+    "after": "2026-07-12",
+    "track": [
+      "025",
+      "069",
+      "A",
+      "012"
+    ],
+    "median_offset_db": 0.86,
+    "pct_drop_gt_3db_raw": 0.0,
+    "pct_drop_gt_2db_after_offset": 0.019,
+    "pct_drop_gt_1db_after_offset": 1.387,
+    "largest_drop_patch_ha_at_1db": 6.34
+  },
+  {
+    "before": "2026-06-25",
+    "after": "2026-07-19",
+    "track": [
+      "025",
+      "163",
+      "D",
+      "078"
+    ],
+    "median_offset_db": 0.47,
+    "pct_drop_gt_3db_raw": 0.0,
+    "pct_drop_gt_2db_after_offset": 0.004,
+    "pct_drop_gt_1db_after_offset": 0.678,
+    "largest_drop_patch_ha_at_1db": 2.07
+  },
+  {
+    "before": "2026-07-12",
+    "after": "2026-07-24",
+    "track": [
+      "026",
+      "069",
+      "A",
+      "012"
+    ],
+    "median_offset_db": -0.27,
+    "pct_drop_gt_3db_raw": 0.0,
+    "pct_drop_gt_2db_after_offset": 0.015,
+    "pct_drop_gt_1db_after_offset": 0.635,
+    "largest_drop_patch_ha_at_1db": 2.79
+  }
+]

@@ -1,0 +1,11 @@
+file 'frame_2026-06-25.png'
+duration 2
+file 'frame_2026-06-30.png'
+duration 2
+file 'frame_2026-07-12.png'
+duration 2
+file 'frame_2026-07-19.png'
+duration 2
+file 'frame_2026-07-24.png'
+duration 2
+file 'frame_2026-07-24.png'

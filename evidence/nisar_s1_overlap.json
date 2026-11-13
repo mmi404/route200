@@ -1,0 +1,126 @@
+{
+  "nisar_pair": "2026-06-30 -> 2026-07-12 (track 069/012)",
+  "nisar_patches_ge_1ha_at_1db": [
+    {
+      "ha": 6.34,
+      "easting": 429582,
+      "northing": 2385504
+    },
+    {
+      "ha": 3.41,
+      "easting": 431581,
+      "northing": 2382494
+    },
+    {
+      "ha": 2.95,
+      "easting": 431754,
+      "northing": 2381682
+    },
+    {
+      "ha": 2.71,
+      "easting": 431748,
+      "northing": 2381138
+    },
+    {
+      "ha": 2.51,
+      "easting": 427977,
+      "northing": 2386267
+    },
+    {
+      "ha": 1.95,
+      "easting": 431161,
+      "northing": 2386293
+    },
+    {
+      "ha": 1.62,
+      "easting": 428065,
+      "northing": 2385739
+    },
+    {
+      "ha": 1.6,
+      "easting": 429222,
+      "northing": 2382727
+    },
+    {
+      "ha": 1.59,
+      "easting": 430789,
+      "northing": 2383598
+    },
+    {
+      "ha": 1.53,
+      "easting": 430867,
+      "northing": 2385062
+    },
+    {
+      "ha": 1.49,
+      "easting": 425924,
+      "northing": 2381108
+    },
+    {
+      "ha": 1.46,
+      "easting": 426936,
+      "northing": 2386668
+    },
+    {
+      "ha": 1.32,
+      "easting": 431222,
+      "northing": 2383044
+    },
+    {
+      "ha": 1.3,
+      "easting": 429292,
+      "northing": 2386469
+    },
+    {
+      "ha": 1.3,
+      "easting": 429610,
+      "northing": 2380893
+    },
+    {
+      "ha": 1.28,
+      "easting": 428124,
+      "northing": 2384156
+    },
+    {
+      "ha": 1.19,
+      "easting": 426637,
+      "northing": 2386930
+    },
+    {
+      "ha": 1.17,
+      "easting": 431617,
+      "northing": 2386246
+    },
+    {
+      "ha": 1.14,
+      "easting": 430778,
+      "northing": 2380187
+    },
+    {
+      "ha": 1.13,
+      "easting": 427471,
+      "northing": 2383927
+    },
+    {
+      "ha": 1.04,
+      "easting": 431635,
+      "northing": 2382174
+    },
+    {
+      "ha": 1.03,
+      "easting": 430811,
+      "northing": 2380631
+    },
+    {
+      "ha": 1.0,
+      "easting": 427496,
+      "northing": 2386662
+    }
+  ],
+  "s1_pair": "2026-05-04 -> 2026-11-05 (team evidence pair)",
+  "s1_scar_ha_at_3db": 193.3,
+  "s1_crs": "EPSG:32646",
+  "nisar_1db_pixels": 10984,
+  "share_nisar_1db_within_100m_of_s1_scar_pct": 34.8,
+  "baseline_aoi_within_100m_of_s1_scar_pct": 17.3
+}

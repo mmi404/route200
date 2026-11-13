@@ -1,0 +1,21 @@
+{
+  "pair": {
+    "before": "2026-06-30",
+    "after": "2026-07-24",
+    "track_frame": "069/012",
+    "orbit_pass": "ascending"
+  },
+  "aoi_bbox_lonlat": [
+    92.26,
+    21.51,
+    92.34,
+    21.59
+  ],
+  "valid_pixels": 792177,
+  "pixel_m": 10.0,
+  "pct_backscatter_drop_gt_3dB": 0.0,
+  "area_drop_m2": 0.0,
+  "pct_backscatter_rise_gt_3dB": 0.0,
+  "median_diff_db": 0.6,
+  "epsg": 32646
+}
