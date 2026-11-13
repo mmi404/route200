@@ -84,6 +84,10 @@ Land-cover density for the ground views. Teknaf item: `ESA_WorldCover_10m_2021_v
 | Path | What it is |
 |---|---|
 | `../media/route200_full_merged.mp4` | Final 230.34 s video, 1920x1080 |
+| `../media/clips/intro_1_Mahi.mp4` to `intro_6_Arik.mp4` | Member name cards, in the order used in the video (clip 3 is Tanim) |
+| `../media/clips/7.mp4` to `13.mp4` | Seven processed clips the final video is built from, in order. `8.mp4` is the longest at 63.14 s. |
+| `../media/scripts/intro/build_intro*.py`, `build_tanim.py` | Name card builders (Pillow frames, whoosh sound, sliding and angled cards) |
+| `../media/scripts/thumb_build.py` | Thumbnail builder (uses `media/nisar_frame_2026-07-12.png`, a NISAR 12 July frame) |
 | `../media/thumbnail_1280x720.jpg` | Thumbnail |
 | `../media/youtube_upload.md` | Title, description, tags and settings |
 | `../media/gibs_nisar_merged_21s.mp4`, `nisar_full.mp4`, `build_full.py` | Sequence clips and the full-frame builder |
