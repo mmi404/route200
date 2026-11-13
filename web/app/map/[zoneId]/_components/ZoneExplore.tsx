@@ -67,6 +67,13 @@ export function ZoneExplore({ zoneId, locale }: ZoneExploreProps) {
     return latest;
   }, [history, day]);
 
+  // Before the zone's first recorded severity event, the scrubber can still
+  // reach real vegetation samples (Teknaf's Landsat record from 1990), so the
+  // badge says that instead of "No data": the land was measured, just not
+  // scored for change.
+  const beforeFirstEvent =
+    !currentEvent && history.length > 0 && day < isoToDayIndex(history[0].dateRangeEnd);
+
   // A zone with a real density timeline (Teknaf) can reach much further
   // back than its recorded severity events: widen this page's scrubbable
   // range the same way Ground View's does, so the two pages agree on how
@@ -131,7 +138,9 @@ export function ZoneExplore({ zoneId, locale }: ZoneExploreProps) {
             <SeverityBadge score={currentEvent.severity} showScore lang={locale} />
           ) : (
             <span className="type-meta inline-flex h-6 items-center gap-2 rounded-xs bg-nodata px-2 font-medium text-ink">
-              {t(translations.common.noData, locale)}
+              {beforeFirstEvent
+                ? t(translations.zoneExplore.vegetationOnly, locale)
+                : t(translations.common.noData, locale)}
             </span>
           )}
         </div>

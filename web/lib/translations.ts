@@ -549,6 +549,10 @@ export const translations = {
       en: "Zone not found.",
       bn: "এলাকা খুঁজে পাওয়া যায়নি।",
     },
+    vegetationOnly: {
+      en: "Vegetation only, no change score yet",
+      bn: "শুধু গাছপালার তথ্য, পরিবর্তনের স্কোর এখনো নেই",
+    },
     loading: {
       en: "Loading terrain…",
       bn: "ভূখণ্ড লোড হচ্ছে…",
