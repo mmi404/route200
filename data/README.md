@@ -41,7 +41,8 @@ Density is `clip((NDVI - 0.0) / (0.9 - 0.0), 0, 1)`, a plain threshold remap. Sc
 | `gibs/frames/f_2026-07-<dd>.png` | Daily true-colour frames, 1 to 25 July 2026, MODIS with VIIRS fallback. 11, 14 and 16 July have no usable image and are left out. |
 | `gibs/list.txt` | Concat list for the frames |
 | `gibs/gibs_cht_july2026.mp4` | Flood-context sequence |
-| `gibs/scripts/build_gibs.py` | Frame builder |
+| `gibs/scripts/fetch_gibs_july.py` | Downloads the daily tiles into `gibs/raw/` (not committed). MODIS first, VIIRS when MODIS is blank. |
+| `gibs/scripts/make_gibs_frames.py` | Labels the tiles and writes `frames/` and `list.txt` |
 | `media/gibs_full.mp4` | Full-frame 1920x1080 version |
 | `../web/public/evidence/<zone>/precip_timeline/` | IMERG precipitation frames used in the zone evidence packs |
 

@@ -395,3 +395,14 @@ Goal: put every processed dataset used in the submission on GitHub, with its sou
 - `docs/NASA_DATASETS.md` adds the GPM IMERG layer, which the submission had not listed.
 - README status rewritten to say what is built with real data and what is not. GitHub description and topics set.
 - Not done: the change-detection engine as a running pipeline, the change-event API, alert delivery, Docker and CI, and `ARCHITECTURE.md` status marks. CEGIS polygons are listed as not used.
+
+## Phase 12: Submission NASA data made reproducible (2026-11-13)
+
+Checked the six datasets in the submission form against the repo.
+
+- NISAR: the form's numbers match `evidence/nisar_teknaf_stats.json`, `nisar_teknaf_pairs.json` and `nisar_s1_overlap.json` (0.0% over 3 dB in all four pairs; 34.8% against 17.3%). The text now says HH, not HHHH.
+- Landsat: 21 samples, 1990 to 2026 (last sample 18 Oct 2026), confirmed against `density_timeline.json`.
+- GIBS: the July download script was not in the repo. Added `data/gibs/scripts/fetch_gibs_july.py` (MODIS, VIIRS fallback, box 91.5, 21.5, 92.5, 23.5). Its gaps are 11, 14 and 16 July, the same as the form. Frames regenerated with `make_gibs_frames.py`. The earlier box could not be recovered; the closest candidate differed by about 21 grey levels per pixel.
+- Video note: `media/` and `data/gibs/gibs_cht_july2026.mp4` were rendered from the earlier download. Re-rendering would change the submitted video, so it is not done.
+- Sentinel-1 RTC, Copernicus DEM GLO-30, and ESA WorldCover: confirmed in `build_evidence.py`, `build_ground_terrain.py` and `web/public/ground-data/`.
+- `docs/NASA_DATASETS.md` rewritten to follow the form: NASA first, then other agencies. Each entry lists the code and outputs. Corrected: the GIBS frames are not video-only (the evidence pages show IMERG and VIIRS), and the Landsat end date is 18 Oct 2026.
