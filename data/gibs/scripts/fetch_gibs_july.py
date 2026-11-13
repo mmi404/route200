@@ -19,8 +19,9 @@ import requests
 GIBS_BASE = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi"
 MODIS = "MODIS_Terra_CorrectedReflectance_TrueColor"
 VIIRS = "VIIRS_SNPP_CorrectedReflectance_TrueColor"
-# Chattogram Hill Tracts, lon/lat, as listed in ML_Data_Sources_DRAFT.md.
-BBOX = (91.5, 21.5, 92.5, 23.5)
+# WMS 1.3.0 with CRS=EPSG:4326 uses lat/lon axis order: min lat, min lon, max lat, max lon.
+# This is the exact request used for the frames in the video (verified byte-identical, July 1).
+BBOX = (21.0, 91.6, 23.0, 92.6)
 SIZE = 800
 # Blank GIBS tiles are small JPEGs. These thresholds match build_gibs.py.
 MODIS_MIN_BYTES = 15000
@@ -32,8 +33,8 @@ RAW = os.path.normpath(os.path.join(HERE, "..", "raw"))
 
 def fetch(layer, day):
     qs = (
-        f"SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS={layer}"
-        f"&TIME={day}&SRS=EPSG:4326"
+        f"SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS={layer}"
+        f"&TIME={day}&CRS=EPSG:4326"
         f"&BBOX={','.join(str(v) for v in BBOX)}"
         f"&WIDTH={SIZE}&HEIGHT={SIZE}&FORMAT=image/jpeg"
     )

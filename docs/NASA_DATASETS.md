@@ -27,9 +27,9 @@ Each entry gives the dataset, where to get it, how Route200 uses it, the code th
 - Link: https://earthdata.nasa.gov/gibs (WMS: `https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi`)
 - Layers: `MODIS_Terra_CorrectedReflectance_TrueColor` (primary), `VIIRS_SNPP_CorrectedReflectance_TrueColor` (fallback)
 - How we used it: daily frames of the Chattogram Hill Tracts, 1 to 25 July 2026, for the flood-context sequence in the video. Days with no data in either layer (11, 14 and 16 July) are left out, not filled in. Most frames are cloud-covered, so the floods are hard to see in them. VIIRS covers 6, 9, 19 and 24 July.
-- Code: `data/gibs/scripts/fetch_gibs_july.py` (download, bounding box 91.5, 21.5, 92.5, 23.5, 800 x 800 px), `data/gibs/scripts/make_gibs_frames.py` (labelled frames and concat list).
+- Code: `data/gibs/scripts/fetch_gibs_july.py` (download: WMS 1.3.0, `CRS=EPSG:4326`, `BBOX=21.0,91.6,23.0,92.6` in lat/lon order, 800 x 800 px), `data/gibs/scripts/make_gibs_frames.py` (labelled frames and concat list).
 - Processed outputs: `data/gibs/frames/` (22 frames), `data/gibs/list.txt`, `data/gibs/gibs_cht_july2026.mp4`, `media/gibs_full.mp4`.
-- Note: the video clips in `media/` were rendered from an earlier download of the same dates. The frames in `data/gibs/frames/` come from the script above, so they can differ slightly in framing from the clips.
+- Note: the fetch script reproduces the earlier downloads byte for byte. The labels are drawn by `make_gibs_frames.py`, so the text can sit slightly differently from the clips in `media/`, which were labelled with ffmpeg. `gibs_cht_july2026.mp4` in this repo is rebuilt from `frames/` (23 s, 25 fps, 800 x 800).
 - Used in: the video only for the July flood sequence.
 
 ### 4. NASA GIBS IMERG precipitation
@@ -38,14 +38,14 @@ Each entry gives the dataset, where to get it, how Route200 uses it, the code th
 - How we used it: precipitation frames for each hill zone's evidence pack, in the evidence page, to show the rain before and during the July 2026 event.
 - Code: `evidence/scripts/build_evidence.py` (`PRECIP_LAYER`, `part3_daily_gibs`)
 - Processed outputs: `web/public/evidence/<zone>/precip_timeline/`
-- Not in the original form list. Add it to the NASA entries of the submission.
+- Not listed in the submission form. It is listed here because the evidence packs use it.
 
 ## Other space agency data (ESA and Copernicus)
 
 ### 5. Sentinel-1 RTC (Copernicus, Sentinel-1 radar)
 
 - Link: https://planetarycomputer.microsoft.com/dataset/sentinel-1-rtc (collection `sentinel-1-rtc`, VV, radiometrically terrain-corrected)
-- Our current change engine. Before and after radar pairs for each zone's evidence page. The Teknaf scar comes from a May to November 2026 pair: `S1A_IW_GRDH_1SDV_20260504T234811_20260504T234836_064374_081B35_rtc` and `S1D_IW_GRDH_1SDV_20261105T115504_20261105T115529_005332_00A26C_rtc` (185 days apart).
+- The Sentinel-1 differencing in the evidence builder (`build_evidence.py`), which produces before and after radar pairs for each zone's evidence page. The change engine as a running pipeline is not built yet. The Teknaf scar comes from a May to November 2026 pair: `S1A_IW_GRDH_1SDV_20260504T234811_20260504T234836_064374_081B35_rtc` and `S1D_IW_GRDH_1SDV_20261105T115504_20261105T115529_005332_00A26C_rtc` (185 days apart).
 - Code: `evidence/scripts/build_evidence.py` (`part1_before_after`, `part2_july_sar`)
 - Processed outputs: `web/public/evidence/<zone>/` (before, after and difference PNGs, dated SAR frames, `manifest.json`).
 - Used in: the per-zone evidence pages.
