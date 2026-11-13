@@ -65,9 +65,25 @@ CUET_404 = Chittagong University of Engineering & Technology plus the error code
 
 The web experience (`web/`) is built: landing page, the interactive risk map, and the alert signup flow, all running against a mock data layer shaped exactly like the real API described below, so the change-detection engine can be connected without a frontend rewrite. See [docs/WEB_DATA_CONTRACT.md](docs/WEB_DATA_CONTRACT.md) for that integration point and [web/DESIGN_SPEC.md](web/DESIGN_SPEC.md) for the visual system it's built on.
 
-The change-detection engine (Sentinel-1 now, NISAR GCOV for the actual submission output) is being built separately; data access and tooling research for that side lives in `nasaspace/ML_Data_Sources_DRAFT.md`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the current system design.
+What is built with real data today:
 
-To run the web app locally: `cd web && npm install && npm run dev`.
+- **Evidence packs** for the five Chattogram Hill Tracts zones (Teknaf, Cox's Bazar Sadar, Bandarban Sadar, Lama, Naikhongchhari): Sentinel-1 RTC before and after images, difference maps, dated SAR frames, and IMERG precipitation frames. See `web/public/evidence/`.
+- **Ground View** for Teknaf and Sonatola: real Copernicus DEM heightmaps, ESA WorldCover density, and a 1990 to 2026 Landsat NDVI timeline. See `web/public/ground-data/`.
+- **NISAR check** over Teknaf (Provisional GCOV, four same-track pairs): no change passed the 3 dB threshold. It is a negative check, not a detection. See `evidence/nisar_teknaf_*.json`.
+- **NASA GIBS** July 2026 true-colour frames and the flood-context video. See `data/gibs/`.
+
+Not built yet: the change-detection engine as a running pipeline (the Sentinel-1 differencing currently lives in the evidence scripts), the change-event API, the alert delivery, and the trained risk model. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) describes each part and marks what is built.
+
+## Data
+
+Every processed dataset used in the submission is in [`data/`](data/README.md), with the scripts that produced it and the source it came from. Raw downloads are not stored. Large `.mp4` and `.npy` files use Git LFS.
+
+Dataset list with links and how each was used: [docs/NASA_DATASETS.md](docs/NASA_DATASETS.md).
+
+## Run it locally
+
+- Web app: `cd web && npm install && npm run dev`
+- Evidence and terrain builders: Python 3 with `numpy`, `scipy`, `h5py`, `earthaccess` and `Pillow`. Each script lives in `evidence/scripts/` and documents its inputs at the top.
 
 ## License
 
