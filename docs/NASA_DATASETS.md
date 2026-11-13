@@ -29,7 +29,7 @@ Each entry gives the dataset, where to get it, how Route200 uses it, the code th
 - How we used it: daily frames of the Chattogram Hill Tracts, 1 to 25 July 2026, for the flood-context sequence in the video. Days with no data in either layer (11, 14 and 16 July) are left out, not filled in. Most frames are cloud-covered, so the floods are hard to see in them. VIIRS covers 6, 9, 19 and 24 July.
 - Code: `data/gibs/scripts/fetch_gibs_july.py` (download: WMS 1.3.0, `CRS=EPSG:4326`, `BBOX=21.0,91.6,23.0,92.6` in lat/lon order, 800 x 800 px), `data/gibs/scripts/make_gibs_frames.py` (labelled frames and concat list).
 - Processed outputs: `data/gibs/frames/` (22 frames), `data/gibs/list.txt`, `data/gibs/gibs_cht_july2026.mp4`, `media/gibs_full.mp4`.
-- Note: the fetch script reproduces the earlier downloads byte for byte. The labels are drawn by `make_gibs_frames.py`, so the text can sit slightly differently from the clips in `media/`, which were labelled with ffmpeg. `gibs_cht_july2026.mp4` in this repo is rebuilt from `frames/` (23 s, 25 fps, 800 x 800).
+- Note: the fetch script and `make_gibs_frames.py` reproduce the earlier tiles and frames byte for byte. `gibs_cht_july2026.mp4` in this repo is rebuilt from `frames/` (23 s, 25 fps, 800 x 800) and matches the earlier video. The 1920 x 1080 clips in `media/` are crops of the same frames.
 - Used in: the video only for the July flood sequence.
 
 ### 4. NASA GIBS IMERG precipitation
