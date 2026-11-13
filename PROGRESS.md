@@ -383,3 +383,15 @@ User tested the live scene after Phase 9 and pushed back again: "there are no si
 **What's left**: Sonatola's ground still reads as "open farmland/char with some trees," not literally a riverbank; no real zone yet has data supporting an actual water render through `Water.tsx`; the exponent/floor values (2 for trees, 1.6 for undergrowth) are a reasoned first pass, not derived from any further real-world validation, and may need another look once a real zone with visible water or truly bare sand is added.
 
 **What's left**: no real water/channel rendering (the scene still looks like a forest clearing, not a river char); the other 4 Jamuna zones have nothing yet; `ZoneExplore.tsx`'s own widened slider (Phase 7) was verified for Teknaf only, not yet re-checked for Sonatola; `build_evidence.py`'s full GIBS evidence pack was not built for this zone, only the ground-terrain pipeline.
+
+## Phase 11: Data showcase and submission coverage (2026-11-13)
+
+Goal: put every processed dataset used in the submission on GitHub, with its source and scripts, so the work is visible and reproducible.
+
+- `data/README.md` maps each submitted dataset to its processed files, build scripts and source: NISAR GCOV Provisional (dB arrays, frames, no-change difference, video), Landsat C2 L2 (21-sample NDVI table plus density grids), NASA GIBS (July frames, flood video, IMERG precipitation), Sentinel-1 RTC (zone evidence packs), Copernicus DEM GLO-30 and ESA WorldCover (ground heightmaps and density).
+- `data/landsat/teknaf_ndvi_samples.csv` is derived from `density_timeline.json`.
+- Raw GIBS tiles were removed from the commit. Raw HDF5 granules and COGs are not stored; `data/README.md` says how to fetch and rebuild them.
+- Large `.mp4` and `.npy` files use Git LFS (13 files, pushed).
+- `docs/NASA_DATASETS.md` adds the GPM IMERG layer, which the submission had not listed.
+- README status rewritten to say what is built with real data and what is not. GitHub description and topics set.
+- Not done: the change-detection engine as a running pipeline, the change-event API, alert delivery, Docker and CI, and `ARCHITECTURE.md` status marks. CEGIS polygons are listed as not used.
